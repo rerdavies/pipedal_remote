@@ -1,4 +1,4 @@
-This project contains source code for the [Android PiPedal Remote](https://play.google.com/store/apps/details?id=com.twoplay.pipedal&hl=en_US) application.
+This project contains source code for the [Android PiPedal Remote](https://play.google.com/store/apps/details?id=com.twoplay.pipedal&hl=en_US) application. 
 
 The sources for this project are made available under an MIT license; but the terms of license for the overall project do not allow you to make derived versions of this project publicly available 
 unless you rename the program. See [LICENSE.md](LICENSE.md) for precise licensing terms and restrictions. 
@@ -13,5 +13,6 @@ Pipedal Remote takes care of the following details when using PiPedal from an An
 
 In conjunction with PiPedal's auto-hotspot feature, this allows you to connect to your Raspberry Pi from your Android device automatically, when you're using PiPedal away from home.
 
+If you wish to install Pipedal remote, you should do so using [Google Play](https://play.google.com/store/apps/details?id=com.twoplay.pipedal&hl=en_US). If you wish to build the application from sources, you should open the project with Android Studio. 
 
 
