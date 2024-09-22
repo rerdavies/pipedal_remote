@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<html><body>
+    <p>To successfully connect to PiPedal, one of the following conditions must be true:</p>
+    <xul>
+        <xli><p>Your Android device and your Raspberry Pi must be connected to the same network using the same Wi-Fi router.</p></xli>
+        <xli><p>Your Android device and your Raspberry Pi must be connected to the same network via a PiPedal <i>Auto-Hotpost</i>.</p></xli>
+    </xul>
+    <p>
+        If you are connecting to a PiPedal <i>Auto-Hotspot</i> for the first time, you must connect to the
+        Wi-Fi hotspot using the Android Wi-Fi network user interface. Click on <b><i>Connect to Wi-Fi network</i></b> and
+        select the PiPedal Wi-Fi hotspot from there.</p>
+    <p>The way the <i>PiPedal auto-hotspot</i> feature is intended to work is that:</p>
+    <xul>
+        <xli><p>When you are at home, your Android device and your Raspberry Pi will connect to each other using your home Wi-Fi router.</p></xli>
+        <xli><p>When you are playing away from home, your Raspberry Pi will not be able to find your home Wi-Fi router, so it will automatically start
+            a Wi-Fi hotspot. Your Android device also won&#8217;t be able to find your home
+            Wi-Fi router, but will find the Wi-Fi hotspot on the Raspberry Pi, and will connect to it automatically, because it remembers it.</p></xli>
+    </xul>
+    <p>Either way, your Android device connects to a Wi-Fi network that the Raspberry Pi is using, and the PiPedal client automatically discovers and connects to the Raspberry Pi.
+     </p>
+    <p>
+    To get this to work, you will have to configure PiPedal to start up a hotspot network. The PiPedal&#8217;s <i>Auto-Hotspot</i> connection is not enabled by default. Consult PiPedal&#8217;s <a href="https://rerdavies.github.io/pipedal/Configuring.html">online documentation</a> for
+        a discussion of how to properly configure Pipedal&#8217;s Auto-Hotspot.
+    </p>
+    <p>
+    You should configure the PiPedal Auto-Hotspot now, so that, when you do take PiPedal out on an adventure away from home, you will be able to connect.
+        When you are away from home, you may not have the tools, and the Wi-Fi router
+    you need to change PiPedal&#8217;s configuration on your Raspberry Pi. So, do it now, and test that it works before you try to use PiPedal outside of your home.
+    If you have multiple PiPedal devices, you can switch connections from the PiPedal user-interface by selecting <b><i>Connect to a different device</i></b> from the PiPedal&#8217;s <b><i>Settings</i></b> panel.
+    </p>
+    <p>Troubleshooting checklist:</p>
+    <xul>
+        <xli><p>Have you configured the Pipedal <i>Auto-Hotspot</i>? If not, go to PiPedal&#8217;s <b><i>Settings</i></b> panel, and
+        select <b><i>Wi-Fi auto-hotspot</i></b>.</p></xli>
+        <xli><p>Have you connected at least once to the Pipedal <i>Auto-Hotspot</i>? If not, tap <b><i>Connect to Wi-Fi network</i></b>.</p></xli>
+        <xli><p>If you are at home, are your Android device and your Raspberry Pi both connected to the same Wi-Fi router?</p></xli>
+    </xul>
+</body></html>

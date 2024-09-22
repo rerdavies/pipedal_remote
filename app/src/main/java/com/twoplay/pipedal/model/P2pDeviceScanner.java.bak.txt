@@ -1,0 +1,1629 @@
+package com.twoplay.pipedal.model;
+
+import android.Manifest;
+import android.annotation.SuppressLint;
+import android.app.Activity;
+import android.content.Context;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.net.MacAddress;
+import android.net.nsd.NsdManager;
+import android.net.nsd.NsdServiceInfo;
+import android.net.wifi.WpsInfo;
+import android.net.wifi.p2p.WifiP2pConfig;
+import android.net.wifi.p2p.WifiP2pDevice;
+import android.net.wifi.p2p.WifiP2pDeviceList;
+import android.net.wifi.p2p.WifiP2pGroup;
+import android.net.wifi.p2p.WifiP2pInfo;
+import android.net.wifi.p2p.WifiP2pManager;
+import android.net.wifi.p2p.nsd.WifiP2pDnsSdServiceRequest;
+import android.net.wifi.p2p.nsd.WifiP2pUpnpServiceRequest;
+import android.os.Build;
+import android.os.Handler;
+import android.util.Log;
+
+import com.twoplay.pipedal.Completion;
+import com.twoplay.pipedal.NetworkHelper;
+import com.twoplay.pipedal.PiPedalApplication;
+import com.twoplay.pipedal.Preferences;
+import com.twoplay.pipedal.Promise;
+import com.twoplay.pipedal.R;
+
+import java.net.InetAddress;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import androidx.annotation.StringRes;
+import androidx.core.app.ActivityCompat;
+import androidx.lifecycle.MutableLiveData;
+
+/**
+ * Copyright (c) 2022-2024, Robin Davies
+ * Created by Robin on 11/04/2022.
+ */
+
+/*
+    Establish a connection. The various cases:
+
+    1. We have a previously selected device.
+       a) List for UPNP announcements with a matching ID.
+          If the id matches, we can connect.
+       b) Listen for WifiDirect announcements with a matching ID.
+          If the id matches, we have to connect to the device.
+          i) scan for for the P2P Device.
+             i.i) Connect to it.
+                 i.i.) wait for the connection.
+                      Go!
+      c) If none of those complete in reasonable time, go to 2.
+
+    2. We do not have a previously selected device.
+        a) Listen for dnsSd announcements with a matching service.
+            Add to list of selectable devices if we find one.
+        b) Listen for WifiDirect announcements with a matching service.
+            Add to list of selected devices if we find one.
+
+        c) if none of those resolve in reasonable time, scan for
+           any P2P device and add it to the list.
+
+       Wait for use to select a device.
+ */
+
+@SuppressLint("MissingPermission")
+public class DeviceScanner {
+    private static final String UPNP_PIPEDAL_SERVICE = "urn:schemas-twoplay-com:service:PiPedal:1";
+    private static final String PIPEDAL_SD_SERVICE_TYPE = "_pipedal._tcp";
+
+    // PiPedal switched over to using hotspots. Totally ignore P2P.
+    private static final boolean DISABLE_P2P_SUPPORT = true; // ignores wi-fi direct connections to make it easier to debug local network d.
+
+    private static final boolean DEBUG_WIFI_DIRECT = false; // ignores wi-fi non-direct connections to make it easier to debug WiFi direct.
+    private WifiP2pManager wifiP2pManager;
+    private NsdManager nsdManager;
+    private WifiP2pManager.Channel wifiP2pChannel;
+
+    private boolean isScanning = false;
+
+    ArrayList<PiPedalConnection> currentConnections = new ArrayList<>();
+    ArrayList<P2pService> p2pServices = new ArrayList<>();
+    private WifiP2pManager.DnsSdServiceResponseListener p2pMdnsResponseListener;
+
+
+    public boolean hasWifiDirectConnection() {
+        for (WifiP2pDevice device : this.deviceList) {
+            if (device.status == WifiP2pDevice.CONNECTED) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
+    static class P2pService {
+
+        public P2pService(String instanceId, WifiP2pDevice p2pDevice, int portNumber) {
+            this.id = PiPedalConnection.NextConnectionId();
+            this.instanceId = instanceId;
+            this.p2pDevice = p2pDevice;
+            this.deviceAddress = p2pDevice.deviceAddress;
+            this.portNumber = portNumber;
+        }
+
+        public P2pService(WifiP2pDevice p2pDevice) {
+            this.id = PiPedalConnection.NextConnectionId();
+            this.instanceId = "";
+            this.p2pDevice = p2pDevice;
+            this.deviceAddress = p2pDevice.deviceAddress;
+            this.portNumber = -1;
+        }
+
+        public long id;
+        public String instanceId;
+        public String deviceAddress;
+        public WifiP2pDevice p2pDevice;
+        public int portNumber = -1;
+    }
+
+    private void onP2pServiceAdded(String instanceId, WifiP2pDevice wifiP2pDevice, int portNumber) {
+        boolean found = false;
+        for (int i = 0; i < p2pServices.size(); ++i) {
+            P2pService service = p2pServices.get(i);
+            if (service.instanceId.equals(instanceId)) {
+                Log.d(TAG, "Updated service: " + wifiP2pDevice.deviceName);
+                service.p2pDevice = wifiP2pDevice; // may have updated data.
+                service.portNumber = portNumber;
+                found = true;
+            }
+        }
+        if (!found) {
+            Log.d(TAG, "Added service: " + wifiP2pDevice.deviceName);
+            p2pServices.add(new P2pService(instanceId, wifiP2pDevice, portNumber));
+        }
+        onP2pServicesChanged();
+    }
+
+    void onP2pServicesChanged() {
+        HashMap<String, P2pService> serviceByInstanceId = new HashMap<>();
+        HashMap<String, P2pService> serviceByDeviceId = new HashMap<>();
+
+        HashMap<String, PiPedalConnection> connectionByDeviceId = new HashMap<>();
+        HashMap<String, PiPedalConnection> connectionByInstanceId = new HashMap<>();
+        for (P2pService service : p2pServices) {
+            if (service.p2pDevice != null) {
+                serviceByDeviceId.put(service.p2pDevice.deviceAddress, service);
+            }
+            if (!service.instanceId.equals("")) {
+                serviceByInstanceId.put(service.instanceId, service);
+            }
+        }
+        for (PiPedalConnection connection : currentConnections) {
+            if (connection.getWifiP2pDevice() != null) {
+                connectionByDeviceId.put(connection.getWifiP2pDevice().deviceAddress, connection);
+            }
+            if (!connection.getInstanceId().equals("")) {
+                connectionByInstanceId.put(connection.getInstanceId(), connection);
+            }
+        }
+        PiPedalConnection lastP2PConnectionToConnectTo = null;
+        for (int i = 0; i < currentConnections.size(); ++i) {
+            PiPedalConnection connection = currentConnections.get(i);
+            if (connection.getWifiP2pDevice() != null) {
+                P2pService service = serviceByDeviceId.get(connection.getWifiP2pDevice().deviceAddress);
+                if (service == null) {
+//                    currentConnections.remove(i);
+//                    --i;
+                } else {
+                    connection.UpdateDevice(service.p2pDevice);
+                    connection.addConnection(service.p2pDevice, service.instanceId, service.portNumber);
+                }
+
+            }
+        }
+
+        boolean foundConnectingDevice = false;
+
+
+        for (P2pService service : p2pServices) {
+            if (service.p2pDevice != null) {
+                if (connectionByInstanceId.containsKey(service.instanceId)) {
+                    PiPedalConnection connection = connectionByInstanceId.get(service.instanceId);
+                    connection.addConnection(service.p2pDevice, service.instanceId, service.portNumber);
+                    connectionByDeviceId.put(service.deviceAddress, connection);
+                    connectionByInstanceId.put(service.instanceId, connection);
+                }
+                if (!connectionByDeviceId.containsKey(service.deviceAddress)) {
+                    PiPedalConnection connection = new PiPedalConnection(service.id, service.instanceId, service.p2pDevice, service.portNumber);
+                    currentConnections.add(connection);
+                    updateIpAddress(connection);
+                    connectionByDeviceId.put(service.deviceAddress, connection);
+                    if (lastP2PConnection != null && service.instanceId.equals(lastP2PConnection.instanceId)) {
+                        if (connection.getStatus() == ConnectionStatus.NotConnected) {
+                            lastP2PConnectionToConnectTo = connection;
+                        }
+                    }
+
+                }
+                // Anonymous devices..
+//            else if (displayAnonymousDevices)
+//            {
+//                currentConnections.add(new PiPedalConnection(service.id,service.device));
+//            }
+            }
+        }
+        if (displayAnonymousDevices) {
+            for (WifiP2pDevice device : deviceList) {
+                if (!connectionByDeviceId.containsKey(device.deviceAddress)) {
+                    PiPedalConnection connection = new PiPedalConnection(PiPedalConnection.NextConnectionId(), device);
+                    connectionByDeviceId.put(connection.getP2pDeviceAddress(), connection);
+                    currentConnections.add(connection);
+                    updateIpAddress(connection);
+                }
+            }
+        }
+        onConnectionsUpdated();
+        if (lastP2PConnectionToConnectTo != null) {
+            p2pConnect(lastP2PConnectionToConnectTo);
+        }
+
+    }
+
+
+    private class P2pUpnpServiceResponseListener implements WifiP2pManager.UpnpServiceResponseListener {
+        @Override
+        public void onUpnpServiceAvailable(List<String> upnpServices, WifiP2pDevice wifiP2pDevice) {
+            if (!Preferences.isP2pUpnpWorking(getContext())) {
+                Preferences.setIsP2pUpnpWorking(getContext(), true);
+            }
+            if (!isScanning) {
+                Log.i(TAG, "Discarding Upnp Service response.");
+                return;
+            }
+            String suffix = "::" + UPNP_PIPEDAL_SERVICE;
+            for (String service : upnpServices) {
+                if (service.contains(suffix)) {
+                    int pos = service.indexOf("::");
+                    if (pos != -1) {
+                        String instanceId = service.substring(0, pos);
+                        if (instanceId.startsWith(("uuid:"))) {
+                            instanceId = instanceId.substring(5);
+                            pos = service.indexOf("::", pos + 2);
+                            int portNumber = 80;
+                            if (pos != -1) {
+                                String port = service.substring((pos + 2));
+
+                                pos = port.indexOf(':');
+                                if (pos != -1) {
+                                    try {
+                                        portNumber = Integer.parseInt(port.substring(pos + 1));
+                                    } catch (Exception ignored) {
+                                    }
+                                }
+
+                            }
+                            Log.d(TAG, "P2p Service found: "
+                                    + wifiP2pDevice.deviceName
+                                    + " "
+                                    + wifiP2pDevice.deviceAddress
+                                    + " :" + portNumber);
+                            onP2pServiceAdded(instanceId, wifiP2pDevice, portNumber);
+                        }
+                    }
+                }
+            }
+            Log.i(TAG, "P2P+UPNP service found: " + upnpServices.toString());
+        }
+    }
+
+    ;
+
+
+    Model model;
+
+    private void onConnectionFailed() {
+        model.setHasWifiDirectConnection(false);
+        setConnectingDeviceState(PiPedalConnection.ConnectingState.Failed);
+        onP2pServicesChanged();
+    }
+
+    private boolean HasPermissions() {
+        if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ActivityCompat.checkSelfPermission(PiPedalApplication.getContext(), Manifest.permission.NEARBY_WIFI_DEVICES) != PackageManager.PERMISSION_GRANTED) {
+                return false;
+            }
+            return true;
+        }
+        if (ActivityCompat.checkSelfPermission(PiPedalApplication.getContext(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            return true;
+        }
+
+        return false;
+
+    }
+
+    @SuppressLint("MissingPermission")
+    void onConnectionResult(ConnectionStatus status, WifiP2pDevice device,InetAddress inetAddress) {
+        if (!isScanning) {
+            return;
+        }
+        if (status != ConnectionStatus.Connected) return;
+        PiPedalConnection connection = getConnectingConnection();
+        if (connection == null) return;
+
+        if (inetAddress != null)
+        {
+            if (connection.getP2PInetAddress() == null) {
+                connection.setP2PInetAddress(inetAddress);
+                if (lastP2PConnection != null) {
+                    // extend the search timeout. Another 20 seconds to resolve the IP address.
+                    resetScanForDeviceTimeout();
+                }
+            }
+
+        }
+
+
+            model.setHasWifiDirectConnection(status == ConnectionStatus.Connected);
+
+        try {
+            if (HasPermissions()) {
+                // Update our peer list, *fully* expecting to find a connected device.
+                wifiP2pManager.requestPeers(wifiP2pChannel, new P2pPeerListListener());
+            }
+        } catch (Exception e) {
+            // could throw security check if permissions got lost. 8-O
+            Log.e(TAG, "Unexpected error while connecting: " + e.getMessage());
+        }
+        switch (status) {
+            case Failed:
+                setConnectingDeviceState(PiPedalConnection.ConnectingState.Failed);
+                onP2pServicesChanged();
+
+                break;
+            case Connected:
+                setConnectingDeviceState(PiPedalConnection.ConnectingState.Connected);
+                onP2pServicesChanged();
+                break;
+        }
+        // make sure mDNS discovery pings the new connection.
+        this.asyncRestartPeerDiscovery().andCatch((e) -> {
+            Log.e(TAG, "asyncRestartPeerDiscovery failed.");
+        });
+    }
+
+    public DeviceScanner(Model model, WifiP2pManager wifiP2pManager, WifiP2pManager.Channel wifiP2pChannel) {
+        this.model = model;
+        this.wifiP2pManager = wifiP2pManager;
+        this.wifiP2pChannel = wifiP2pChannel;
+    }
+
+
+    private Handler handler = new Handler();
+
+    private void onNsdServiceFound(NsdServiceInfo serviceInfo) {
+
+        DetailedIpAddress address = new DetailedIpAddress(getContext(), serviceInfo.getHost(), serviceInfo.getPort());
+        if (address.networkType == ConnectionType.WifiDirect && NetworkHelper.isIpV6(serviceInfo.getHost())) {
+            Log.w(TAG, "Wi-Fi Direct device is advertising an IPV6 address. (" + serviceInfo.getServiceName() + ")");
+            return;
+        }
+
+        Log.d(TAG, "OnNsdServiceFound: " + address.toString());
+        if (DEBUG_WIFI_DIRECT) {
+            if (address.networkType != ConnectionType.WifiDirect) {
+                return;
+            }
+        }
+        String instanceId = PiPedalConnection.getInstanceId(serviceInfo);
+        boolean found = false;
+        if (instanceId.isEmpty()) {
+            return;
+        }
+        for (PiPedalConnection connection : this.currentConnections) {
+            // discovered a bonjour local-network device for a wifi-direct accessible device.
+            if (connection.getInstanceId().equals(instanceId)) {
+                connection.addServiceInfo(serviceInfo);
+                found = true;
+            }
+        }
+        if (!found) {
+            if (displayAnonymousDevices) {
+                for (PiPedalConnection connection : this.currentConnections) {
+                    if (connection.getDisplayName().equals(serviceInfo.getServiceName())) {
+                        connection.addServiceInfo(serviceInfo);
+                        found = true;
+                    }
+                }
+            }
+
+            if (!found) {
+                PiPedalConnection connection = new PiPedalConnection(serviceInfo);
+                currentConnections.add(connection);
+                updateIpAddress(connection);
+                onP2pServicesChanged();
+            }
+        }
+        onConnectionsUpdated();
+    }
+
+    private Context getContext() {
+        return PiPedalApplication.getContext();
+    }
+
+
+    private boolean restarting = false;
+
+    public void restartScan(Activity activity) {
+        if (restarting) {
+            return;
+        }
+        restarting = true;
+        asyncStopScan_()
+                .then((v) -> {
+                    this.p2pServices.clear();
+                    this.currentConnections.clear();
+                    this.connectingDevice = null;
+                    this.getPiPedalDevices().setValue(new ArrayList<PiPedalConnection>());
+                    return startScan(activity);
+                }).andThen((v) -> {
+                    restarting = false;
+                }).andCatch((e) -> {
+                    Log.e(TAG, "restartScan failed." + e.getMessage());
+                    restarting = false;
+                });
+    }
+
+    static final int SCAN_TIME_MS = 20000;
+
+    static final int SEARCH_TIME_MS = 20000;
+
+
+    private LastP2Pconnection lastP2PConnection = null;
+
+
+    private void onConnectionsUpdated() {
+        List<PiPedalConnection> t = this.getPiPedalDevices().getValue();
+        if (!currentConnections.equals(t)) {
+            ArrayList<PiPedalConnection> newList = new ArrayList<>();
+            for (PiPedalConnection connection : currentConnections) {
+                newList.add(connection.clone());
+            }
+            this.getPiPedalDevices().setValue(newList);
+        }
+
+        PiPedalConnection successfullyConnectedDevice = null;
+        if (this.connectingDevice != null) {
+            for (PiPedalConnection device : currentConnections) {
+                if (device.getP2pDeviceAddress().equals(this.connectingDevice)) {
+                    ConnectionStatus status = device.getStatus();
+                    if (status == ConnectionStatus.Connected || status == ConnectionStatus.AvailableOnLocalNetwork) {
+                        successfullyConnectedDevice = device;
+                        this.connectingDevice = null;
+                    }
+                    break;
+                }
+
+            }
+
+        }
+        if (this.lastP2PConnection != null) {
+            for (PiPedalConnection device : currentConnections) {
+
+                boolean matchesLastconnection = (lastP2PConnection != null &&
+                        (device.getBssid().equals(lastP2PConnection.bssid)
+                                || device.getInstanceId().equals(lastP2PConnection.instanceId)));
+                if (matchesLastconnection) {
+                    ConnectionStatus status = device.getStatus();
+                    if (status == ConnectionStatus.Connected || status == ConnectionStatus.AvailableOnLocalNetwork) {
+                        successfullyConnectedDevice = device;
+                        lastP2PConnection = null;
+                    }
+                    break;
+                }
+
+            }
+        }
+        if (successfullyConnectedDevice != null) {
+            this.onConnected(successfullyConnectedDevice);
+        }
+    }
+
+    public interface DisconnectCallback {
+        void onDisconnected();
+    }
+
+    public void disconnectP2P(final DisconnectCallback disconnectCallback) {
+        if (wifiP2pManager == null || wifiP2pChannel == null) {
+            disconnectCallback.onDisconnected();
+            return;
+        }
+        wifiP2pManager.requestGroupInfo(wifiP2pChannel, new WifiP2pManager.GroupInfoListener() {
+            @Override
+            public void onGroupInfoAvailable(WifiP2pGroup group) {
+                if (group != null) {
+                    try {
+                        wifiP2pManager.removeGroup(wifiP2pChannel, new WifiP2pManager.ActionListener() {
+
+                            @Override
+                            public void onSuccess() {
+                                handler.post(() -> {
+                                    if (disconnectCallback != null)
+                                        disconnectCallback.onDisconnected();
+                                });
+                            }
+
+                            @Override
+                            public void onFailure(int reason) {
+                                handler.post(() -> {
+                                    if (disconnectCallback != null)
+                                        disconnectCallback.onDisconnected();
+                                });
+                            }
+                        });
+                    } catch (Exception ignored) {
+                        handler.post(() -> {
+                            if (disconnectCallback != null) disconnectCallback.onDisconnected();
+                        });
+                    }
+                } else {
+                    handler.post(() -> {
+                        if (disconnectCallback != null) disconnectCallback.onDisconnected();
+                    });
+                }
+
+            }
+        });
+
+    }
+
+    public MutableLiveData<String> scanForDeviceStatus = new MutableLiveData<>("");
+
+    private enum ScanForDeviceState {
+        Idle,
+        Scanning,
+        Connecting, Resolving,
+    }
+
+    private ScanForDeviceState scanForDeviceState = ScanForDeviceState.Idle;
+
+    private void setScanForDeviceState(ScanForDeviceState state) {
+        if (state != scanForDeviceState) {
+            this.scanForDeviceState = state;
+            resetScanForDeviceTimeout();
+        }
+    }
+
+    private void resetScanForDeviceTimeout() {
+        cancelScanTimeout();
+        if (model.scanState.getValue() != ScanState.SearchingForInstance) {
+            return;
+        }
+        displayAnonymousDevices = false;
+        setScanTimeout(() -> {
+            if (model.scanState.getValue().equals(ScanState.SearchingForInstance)) {
+                if (this.currentConnections.size() == 0) {
+                    addAnonymousWifiDevices();
+                    model.setScanState(ScanState.ScanComplete);
+                } else {
+                    model.setScanState(ScanState.ScanComplete);
+                }
+            }
+        });
+
+    }
+
+
+    public Promise<Void> scanForDevice(
+            Activity activity,
+            LastP2Pconnection lastConnection
+    ) {
+
+        model.setScanState(ScanState.SearchingForInstance);
+        assert lastConnection != null; // shoud be true if we are searching for an instance.
+        this.lastP2PConnection = null;
+        if (lastConnection.valid) {
+            this.lastP2PConnection = lastConnection;
+        }
+
+        scanForDeviceStatus.setValue(
+                String.format(activity.getString(R.string.scanning_for_device__device_name), lastP2PConnection.serverName));
+
+        this.scanForDeviceState = ScanForDeviceState.Scanning;
+        resetScanForDeviceTimeout();
+
+        resetDeviceLists();
+
+
+        return new Promise<Void>((completion) -> {
+            asyncStopScan_().andThen((voidArg) -> {
+                asyncStartScan_(activity).andThen((voidArg2) -> {
+                    completion.fulfill(null);
+                }).andCatch((e) -> {
+                    completion.reject(e);
+                });
+            }).andCatch((e) -> {
+                completion.reject(e);
+            });
+        });
+    }
+
+    private void resetDeviceLists() {
+        this.deviceList.clear();
+        this.p2pServices.clear();
+        this.currentConnections.clear();
+        this.getPiPedalDevices().setValue(new ArrayList<PiPedalConnection>());
+    }
+
+    private Runnable timeoutRunnable;
+
+    private void setScanTimeout(Runnable runnable) {
+        cancelScanTimeout();
+        timeoutRunnable = runnable;
+        handler.postDelayed(runnable, SEARCH_TIME_MS);
+    }
+
+    void cancelScanTimeout() {
+        if (timeoutRunnable != null) {
+            handler.removeCallbacks(timeoutRunnable);
+            timeoutRunnable = null;
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    public Promise<Void> startScan(Activity activity) {
+        resetDeviceLists();
+        return new Promise<Void>(handler, (completion) -> {
+            this.lastP2PConnection = null; // no  more quick connect behavior.
+            model.setScanState(ScanState.Searching);
+            setScanTimeout(
+                    () -> {
+                        if (model.scanState.getValue().equals(ScanState.Searching)) {
+                            if (pipedalDevices.getValue().size() == 0) {
+                                if (!DISABLE_P2P_SUPPORT) {
+                                    addAnonymousWifiDevices();
+                                }
+                            }
+                            model.setScanState(ScanState.ScanComplete);
+                        }
+                    });
+
+            final Promise<Void> scanPromise = asyncStartScan_(activity).andThen((v) -> {
+                completion.fulfill(null);
+            });
+            scanPromise.andCatch((e) ->
+            {
+                completion.reject(e);
+            });
+            ;
+
+            completion.onCancelled(() -> {
+                scanPromise.cancel();
+            });
+        });
+    }
+
+    boolean displayAnonymousDevices = false;
+
+    private void addAnonymousWifiDevices() {
+        if (!Preferences.isP2pUpnpWorking(getContext())) {
+            if (this.deviceList != null) {
+                displayAnonymousDevices = true;
+                this.onDeviceListChanged();
+            }
+        }
+    }
+
+    Promise<Void> asyncRestartDnsSdQuery() {
+        return new Promise<Void>((completion) -> {
+            Promise<Void> stopPromise = Promise.<Void>EmptyPromise();
+            if (this.nsdDiscoveryListener != null) {
+                Log.d(TAG, "asyncRestartDnsSdQuery");
+                stopPromise = nsdDiscoveryListener.asyncStopDiscovery();
+                this.nsdDiscoveryListener = null;
+            }
+            stopPromise.andThen((voidArg) -> {
+                makeDiscoveryListener().asyncDiscoverServices()
+                        .andThen((voidArg2) -> {
+                            completion.fulfill(null);
+                        });
+            });
+        });
+    }
+
+
+    @SuppressLint("MissingPermission")
+    private Promise<Void> restartRequestPeers() {
+        return new Promise<Void>(handler, (completion) -> {
+            if (!HasPermissions()) {
+                completion.reject(new Exception("ACCESS_FINE_LOCATION permission denied."));
+            }
+            wifiP2pManager.requestPeers(wifiP2pChannel, new P2pPeerListListener());
+            wifiP2pManager.discoverPeers(wifiP2pChannel, new WifiP2pManager.ActionListener() {
+                @Override
+                public void onSuccess() {
+                    completion.fulfill(null);
+                }
+
+                @Override
+                public void onFailure(int i) {
+                    completion.reject(new Exception("Failed to initiate P2P peer discovery. (" + i + ")"));
+                }
+            });
+
+        });
+
+    }
+
+    public void stopScan(Activity activity)
+    {
+        if (model.getScanState() == ScanState.ScanComplete)
+        {
+            return;
+        }
+        if (restarting) // avoid initiating concurrent async ops.
+        {
+            return;
+        }
+        model.setScanState(ScanState.ScanComplete);
+        asyncStopScan();
+    }
+
+    @SuppressLint("MissingPermission")
+    Promise<Void> asyncStartScan_(Activity activity) {
+        isScanning = true;
+        return new Promise<Void>(handler, (completion) -> {
+            this.nsdManager = (NsdManager) activity.getSystemService(Context.NSD_SERVICE);
+
+
+            completion.onCancelled(() -> {
+                asyncStopScan();
+            });
+            refreshConnections();
+
+            Promise<Void> upnpDiscovery = startP2pUpnpDiscovery();
+            upnpDiscovery.andThen((voidArg) -> {
+                asyncRestartDnsSdQuery()
+                        .andThen((voidArg2) -> {
+                            try {
+                                if (HasPermissions()) {
+                                    // Update our peer list, *fully* expecting to find a connected device.
+                                    wifiP2pManager.requestPeers(wifiP2pChannel, new P2pPeerListListener());
+                                }
+                            } catch (Exception e) {
+                                // could throw security check if permissions got lost. 8-O
+                                Log.e(TAG, "Unexpected error while connecting: " + e.getMessage());
+                            }
+
+                            completion.fulfill(null);
+                        });
+
+            });
+        });
+
+    }
+
+    private Promise<Void> startP2pUpnpDiscovery() {
+        return new Promise<Void>(handler, (completion) -> {
+            if (DISABLE_P2P_SUPPORT)
+            {
+                completion.fulfill(null);
+            }
+
+            if (!HasPermissions()) {
+                completion.reject(new Exception("ACCESS_FINE_LOCATION permission denied."));
+                return;
+            }
+            wifiP2pManager.clearServiceRequests(wifiP2pChannel, new WifiP2pManager.ActionListener() {
+                @Override
+                public void onSuccess() {
+                    WifiP2pUpnpServiceRequest upnpServiceRequest = WifiP2pUpnpServiceRequest.newInstance(UPNP_PIPEDAL_SERVICE);
+                    wifiP2pManager.setUpnpServiceResponseListener(wifiP2pChannel, new P2pUpnpServiceResponseListener());
+                    wifiP2pManager.addServiceRequest(wifiP2pChannel, upnpServiceRequest, new WifiP2pManager.ActionListener() {
+                        @Override
+                        public void onSuccess() {
+                            if (!HasPermissions()) {
+                                completion.reject(new Exception("ACCESS_FINE_LOCATION permission not granted."));
+                                return;
+                            }
+                            wifiP2pManager.discoverServices(wifiP2pChannel,
+                                    new WifiP2pManager.ActionListener() {
+                                        @Override
+                                        public void onSuccess() {
+                                            // Success!
+                                            Log.d(TAG, "Listening to service requests.");
+                                            completion.fulfill(null);
+                                        }
+
+                                        @Override
+                                        public void onFailure(int code) {
+                                            completion.reject(new Exception("P2P Service discovery failed." + getP2pError(code)));
+                                        }
+                                    });
+
+                        }
+
+                        @Override
+                        public void onFailure(int i) {
+                            completion.reject(new Exception("Failed to clear P2P service discovery requests."));
+                        }
+                    });
+
+                }
+
+                @Override
+                public void onFailure(int i) {
+                    onSuccess(); // probably because there's nothing to cancel.
+                }
+            });
+
+        });
+
+    }
+
+    private void startP2pMdnsDiscovery() {
+        if (DISABLE_P2P_SUPPORT)
+        {
+            return;
+        }
+        // Start P2P Service discovery (UPNP and DNS-SDE)
+        wifiP2pManager.setDnsSdResponseListeners(wifiP2pChannel,
+                this.p2pMdnsResponseListener = new WifiP2pManager.DnsSdServiceResponseListener() {
+                    @Override
+                    public void onDnsSdServiceAvailable(String instanceName, String registrationType, WifiP2pDevice wifiP2pDevice) {
+                        Log.i(TAG, "P2P+mDNS service found: " + instanceName + "." + registrationType);
+
+                    }
+                },
+                new WifiP2pManager.DnsSdTxtRecordListener() {
+                    @Override
+                    public void onDnsSdTxtRecordAvailable(String fullDomain, Map<String, String> map, WifiP2pDevice wifiP2pDevice) {
+                        Log.e(TAG, "Got DnsSdTxt response: " + fullDomain);
+                    }
+                }
+        );
+        WifiP2pDnsSdServiceRequest dnsSdServiceRequest = WifiP2pDnsSdServiceRequest.newInstance("_pipedal._tcp");
+        // WifiP2pDnsSdServiceRequest dnsSdServiceRequest = WifiP2pDnsSdServiceRequest.newInstance();
+
+        wifiP2pManager.clearServiceRequests(wifiP2pChannel, new WifiP2pManager.ActionListener() {
+            @Override
+            public void onSuccess() {
+                wifiP2pManager.addServiceRequest(wifiP2pChannel, dnsSdServiceRequest, new WifiP2pManager.ActionListener() {
+                    @Override
+                    public void onSuccess() {
+                        // carry on.
+                    }
+
+                    @Override
+                    public void onFailure(int i) {
+                        Log.e(TAG, "Failed to add P2P+mDns service discovery request.");
+                    }
+                });
+
+            }
+
+            @Override
+            public void onFailure(int i) {
+                Log.e(TAG, "Failed to clear service requests.");
+            }
+        });
+
+    }
+
+    private boolean discovering = false;
+
+    private Promise<Void> asyncStopPeerDiscovery() {
+        return new Promise<>(handler, (completion) -> {
+            if (discovering) {
+                discovering = false;
+                wifiP2pManager.stopPeerDiscovery(wifiP2pChannel, new WifiP2pManager.ActionListener() {
+                    @Override
+                    public void onSuccess() {
+
+                        discovering = false;
+                        completion.fulfill(null);
+                    }
+
+                    @Override
+                    public void onFailure(int i) {
+                        discovering = false;
+                        if (i == 0) {
+                            completion.fulfill(null); // nothing to cancel.
+                        } else {
+                            completion.fulfill(null);
+                        }
+                    }
+                });
+            } else {
+                completion.fulfill(null);
+            }
+        });
+    }
+
+    private Promise<Void> asyncRestartPeerDiscovery() {
+        return new Promise<Void>(handler, (completion) -> {
+
+            asyncStopPeerDiscovery()
+                    .andThen((v) -> {
+                        discovering = true;
+                        if (!HasPermissions()) {
+                            completion.reject(new Exception("ACCESS_FINE_LOCATION permissions denied."));
+                        }
+                        wifiP2pManager.discoverPeers(wifiP2pChannel, new WifiP2pManager.ActionListener() {
+                            @Override
+                            public void onSuccess() {
+                                completion.fulfill(null);
+                            }
+
+                            @Override
+                            public void onFailure(int i) {
+                                if (i != 0) {
+                                    Log.e(TAG, "Failed to initiate P2P peer discovery.");
+                                }
+                                completion.fulfill(null);
+                            }
+                        });
+                    });
+        });
+    }
+
+    Promise<Void> asyncStopServiceDiscovery() {
+        return new Promise<Void>(handler, (completion) ->
+        {
+            if (nsdDiscoveryListener == null) {
+                completion.fulfill((null));
+            }
+            nsdDiscoveryListener.asyncStopDiscovery()
+                    .andThen((voidArg) -> {
+                        completion.fulfill(null);
+                    });
+        });
+    }
+
+    public Promise<Void> asyncStopScan() {
+        cancelScanTimeout();
+        return asyncStopScan_();
+    }
+
+    public Promise<Void> asyncStopScan_() {
+
+        return new Promise<Void>(handler, (completion) -> {
+            if (!isScanning) {
+                completion.fulfill(null);
+                return;
+            }
+            isScanning = false;
+            Promise<Void> serviceDiscoveryPromise;
+            if (nsdDiscoveryListener != null) {
+                serviceDiscoveryPromise = nsdDiscoveryListener.asyncStopDiscovery();
+            } else {
+                serviceDiscoveryPromise = Promise.<Void>EmptyPromise();
+            }
+            serviceDiscoveryPromise.andThen((voidArg) -> {
+                wifiP2pManager.setUpnpServiceResponseListener(wifiP2pChannel, null);
+                wifiP2pManager.setDnsSdResponseListeners(wifiP2pChannel, null, null);
+
+
+                asyncStopPeerDiscovery()
+                        .andThen((v) -> {
+
+                            wifiP2pManager.clearServiceRequests(wifiP2pChannel, new WifiP2pManager.ActionListener() {
+                                private void action() {
+                                    wifiP2pManager.stopPeerDiscovery(wifiP2pChannel, new WifiP2pManager.ActionListener() {
+                                        private void action() {
+                                            completion.fulfill(null);
+                                        }
+
+                                        @Override
+                                        public void onSuccess() {
+                                            action();
+                                        }
+
+                                        @Override
+                                        public void onFailure(int i) {
+                                            Log.e(TAG, "Failed to stop peer discovery (" + i + ")");
+                                            action();
+                                        }
+                                    });
+
+                                }
+
+                                @Override
+                                public void onSuccess() {
+                                    action();
+                                }
+
+                                @Override
+                                public void onFailure(int i) {
+                                    Log.e(TAG, "Failed to clear service requests (" + i + ")");
+                                    action();
+
+                                }
+                            });
+
+                        });
+            });
+        });
+
+    }
+
+    private Promise<Void> stopRequestPeers() {
+        return new Promise<Void>(handler, (completion) -> {
+            wifiP2pManager.stopPeerDiscovery(wifiP2pChannel, new WifiP2pManager.ActionListener() {
+                @Override
+                public void onSuccess() {
+                    completion.fulfill(null);
+                }
+
+                @Override
+                public void onFailure(int i) {
+                    Log.d(TAG, "stopRequestPeers failed. " + getP2pError(i));
+                    completion.fulfill(null);
+                }
+            });
+        });
+    }
+
+    // Instantiate a new DiscoveryListener
+    class DiscoveryListener implements NsdManager.DiscoveryListener {
+
+
+        private ArrayList<NsdServiceInfo> pendingNdsResolves = new ArrayList<>();
+        private boolean resolvePending = false;
+
+        private NsdManager.ResolveListener resolveListener;
+
+
+        Completion<Void> discoveryStoppedCompletion;
+
+        Promise<Void> asyncStopDiscovery() {
+            return new Promise<Void>((completion) -> {
+                if (closed) {
+                    completion.fulfill(null);
+                }
+                closed = true;
+                discoveryStoppedCompletion = completion;
+                try {
+                    nsdManager.stopServiceDiscovery(this);
+                } catch (Exception e) {
+                    Log.e(TAG, "stopServiceDiscovery failed: " + e.getMessage());
+                    completion.fulfill(null);
+                }
+                completion.fulfill(null);
+            });
+        }
+
+        private Completion<Void> discoverServicesCompletion;
+
+        public Promise<Void> asyncDiscoverServices() {
+            return new Promise<Void>((completion) -> {
+                discoverServicesCompletion = completion;
+                nsdManager.discoverServices(
+                        PIPEDAL_SD_SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, this); // has to be unique each time (see docs).
+
+            });
+
+        }
+
+        @Override
+        public void onStartDiscoveryFailed(String serviceType, int errorCode) {
+            Log.e(TAG, "OnStartDiscoveryFailed: Error code:" + errorCode);
+            closed = true;
+            if (discoverServicesCompletion != null) {
+                Exception e = new Exception("OnStartDiscoveryFailed: Error code:" + errorCode);
+                discoverServicesCompletion.reject(e);
+                discoverServicesCompletion = null;
+            }
+        }
+
+        // Called as soon as service discovery begins.
+        @Override
+        public void onDiscoveryStarted(String regType) {
+            Log.i(TAG, "Service discovery started");
+            if (discoverServicesCompletion != null) {
+                discoverServicesCompletion.fulfill(null);
+                discoverServicesCompletion = null;
+            }
+        }
+
+        @Override
+        public void onStopDiscoveryFailed(String serviceType, int errorCode) {
+            Log.e(TAG, "onStopDiscoveryFailed (" + errorCode + ")");
+            resolvePending = false;
+            closed = true;
+            if (discoveryStoppedCompletion != null) {
+                nsdDiscoveryListener = null;
+                discoveryStoppedCompletion.fulfill(null);
+                discoveryStoppedCompletion = null;
+            }
+
+        }
+
+        @Override
+        public void onDiscoveryStopped(String regType) {
+            resolvePending = false;
+            closed = true;
+            nsdDiscoveryListener = null;
+
+            if (discoveryStoppedCompletion != null) {
+                discoveryStoppedCompletion.fulfill(null);
+                discoveryStoppedCompletion = null;
+            }
+        }
+
+        private void resolveNext() {
+            if (closed) {
+                Log.d(TAG, "Discarding NDS request. (Closed)");
+                return;
+            }
+            if (pendingNdsResolves.size() != 0) {
+                if (resolvePending) {
+                    Log.d(TAG, "Queueing NDS request.");
+                    return;
+                }
+                resolvePending = true;
+                try {
+
+                    if (!isScanning) {
+                        Log.d(TAG, "Discarding NDS request. (Not scanning)");
+                        pendingNdsResolves.clear();
+                        resolvePending = false;
+                        return;
+                    }
+                    NsdServiceInfo next = pendingNdsResolves.remove(0);
+                    Log.d(TAG, "Resolving mDNS service " + next.getServiceName());
+                    resolveListener =
+                            new NsdManager.ResolveListener() {
+                                public void onResolveFailed(NsdServiceInfo serviceInfo, int errorCode) {
+                                    String errorMessage;
+                                    switch (errorCode) {
+                                        case NsdManager.FAILURE_ALREADY_ACTIVE:
+                                            errorMessage = "FAILURE_ALREADY_ACTIVE";
+                                            break;
+
+                                        case NsdManager.FAILURE_INTERNAL_ERROR:
+                                            errorMessage = "FAILURE_INTERNAL_ERROR";
+                                            break;
+                                        case NsdManager.FAILURE_MAX_LIMIT:
+                                            errorMessage = "FAILURE_MAX_LIMIT";
+                                            break;
+                                        default:
+                                            errorMessage = "UNKNOWN ERROR";
+                                            break;
+                                    }
+                                    Log.e(TAG, "NsdManager.ResolveListener failed. " + errorMessage + "= " + errorCode);
+                                    resolvePending = false;
+                                    resolveNext();
+                                }
+
+                                public void onServiceResolved(NsdServiceInfo serviceInfo) {
+                                    try {
+                                        Log.i(TAG, "mDNS Service found: " + serviceInfo);
+                                        if (closed)
+                                            return;
+
+                                        handler.post(() -> {
+                                            if (closed) {
+                                                return;
+                                            }
+                                            onNsdServiceFound(serviceInfo);
+                                        });
+                                    } catch (Exception e) {
+                                        Log.e(TAG, "Failed to add discovered service." + e.getMessage());
+                                    }
+                                    resolvePending = false;
+                                    resolveNext();
+                                }
+                            };
+
+                    nsdManager.resolveService(next, resolveListener);
+
+                } catch (Exception e) {
+                    Log.e(TAG, "Unhandled exception in resolveNext(): " + e.getMessage());
+                    resolvePending = false;
+                }
+            }
+        }
+
+
+        @Override
+        public void onServiceFound(NsdServiceInfo service) {
+            if (closed) return;
+            if (service.getServiceType().startsWith(PIPEDAL_SD_SERVICE_TYPE)) {
+                Log.i(TAG, "Queuing mDNS service " + service.getServiceName() + " " + service.getHost() + " : " + service.getPort());
+                if (nsdManager != null) {
+                    pendingNdsResolves.add(service);
+                    resolveNext();
+                } else {
+                    throw new RuntimeException("ndsManager not initialized.");
+                }
+            }
+        }
+
+
+        @Override
+        public void onServiceLost(NsdServiceInfo service) {
+            // TODO:
+        }
+
+        private boolean closed = false;
+
+    }
+
+    ;
+
+    DiscoveryListener nsdDiscoveryListener = null;
+
+    DiscoveryListener makeDiscoveryListener() {
+        nsdDiscoveryListener = new DiscoveryListener();
+        return nsdDiscoveryListener;
+    }
+
+    private static String TAG = "DeviceScanner";
+
+    private MutableLiveData<List<PiPedalConnection>> pipedalDevices;
+
+    public MutableLiveData<List<PiPedalConnection>> getPiPedalDevices() {
+        if (pipedalDevices == null) {
+            pipedalDevices = new MutableLiveData<>();
+            ArrayList<PiPedalConnection> emptyList = new ArrayList<>();
+            pipedalDevices.setValue(emptyList);
+        }
+        return pipedalDevices;
+
+    }
+
+    private Object syncPost = new Object();
+
+
+    private void onDeviceListChanged() {
+
+        // index the available devices.
+        HashMap<String, WifiP2pDevice> currentPeersIndex = new HashMap<>();
+
+        //Log.d(TAG, "onPeersAvailable >");
+
+        WifiP2pDevice selectedDevice = null;
+
+        for (WifiP2pDevice device : this.deviceList) {
+            currentPeersIndex.put(device.deviceAddress, device);
+            if (lastP2PConnection != null && device.deviceAddress.equals(lastP2PConnection.bssid)) {
+                //Log.d(TAG, "    >" + device.deviceName + " " + device.deviceAddress +  " (Selected)");
+                selectedDevice = device;
+            } else {
+                //Log.d(TAG, "    >" + device.deviceName+ " " + device.deviceAddress );
+
+            }
+        }
+
+        // refresh the device in each p2p service entry.
+        for (int i = 0; i < p2pServices.size(); ++i) {
+            P2pService service = p2pServices.get(i);
+
+            // if we already have the servce, we don't need to add it again
+            // yyy
+            if (lastP2PConnection != null && service.deviceAddress.equals(lastP2PConnection.bssid)) {
+                selectedDevice = null;
+            }
+
+            if (currentPeersIndex.containsKey(service.deviceAddress)) {
+                service.p2pDevice = currentPeersIndex.get(service.deviceAddress);
+            }
+        }
+        //if it's our cached selected device, we don't need to wait for P2P+UPNP discovery to complete. yyy
+        if (lastP2PConnection != null && selectedDevice != null) {
+            // yyy create a service. Connection should happen naturally from here.
+            P2pService selectedDeviceService = new P2pService(lastP2PConnection.instanceId, selectedDevice, lastP2PConnection.portNumber);
+            p2pServices.add(selectedDeviceService);
+        }
+        onP2pServicesChanged();
+    }
+
+
+    List<WifiP2pDevice> deviceList = new ArrayList<WifiP2pDevice>();
+
+    class P2pPeerListListener implements WifiP2pManager.PeerListListener {
+        @Override
+        public void onPeersAvailable(WifiP2pDeviceList peerList) {
+            if (!isScanning) {
+                return;
+            }
+
+
+            ArrayList<WifiP2pDevice> myDeviceList = new ArrayList<>();
+            for (WifiP2pDevice device : peerList.getDeviceList()) {
+                myDeviceList.add(device);
+            }
+            deviceList = myDeviceList;
+
+            onDeviceListChanged();
+
+            //Log.d(TAG, "onPeersAvailable <");
+        }
+    }
+
+
+    private String getString(@StringRes int rid) {
+        return getContext().getString(rid);
+    }
+
+    private String connectingDevice = null;
+
+    public PiPedalConnection getConnectingConnection() {
+        if (connectingDevice == null) return null;
+
+        for (PiPedalConnection connection : currentConnections) {
+            if (connection.getBssid() != null && connection.getBssid().equals(connectingDevice)) {
+                return connection;
+            }
+        }
+        return null;
+    }
+
+    public void p2pConnect(PiPedalConnection piPedalConnection) {
+        if (connectingDevice != null) return;
+        if (piPedalConnection.getStatus() == ConnectionStatus.AvailableOnLocalNetwork) {
+            onConnected(piPedalConnection);
+            return;
+        }
+
+        if (piPedalConnection.getStatus() != ConnectionStatus.NotConnected && piPedalConnection.getStatus() != ConnectionStatus.Failed) {
+            return;
+        }
+
+
+        if (piPedalConnection.getConnectionType() != ConnectionType.WifiDirect) {
+
+            throw new RuntimeException("Not a p2p2 connection.");
+        }
+        WifiP2pDevice device = piPedalConnection.getWifiP2pDevice();
+
+        if (!HasPermissions()) {
+            model.showError(getString(R.string.permission_denied), getContext().getString((R.string.app_name)));
+            onConnectionFailed();
+            return;
+        }
+        WifiP2pConfig config;
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            try {
+                config = new WifiP2pConfig.Builder()
+                        .enablePersistentMode(true)
+                        .setDeviceAddress(MacAddress.fromString(device.deviceAddress))
+                        .build();
+            } catch (Exception e) {
+                // builder doesn't work on Q at least. Does work on 33.
+                config = new WifiP2pConfig();
+                config.deviceAddress = device.deviceAddress;
+            }
+        } else {
+            config = new WifiP2pConfig();
+
+            config.deviceAddress = device.deviceAddress;
+        }
+        if (device.wpsPbcSupported()) {
+            config.wps.setup = WpsInfo.PBC;
+        } else if (device.wpsKeypadSupported()) {
+            config.wps.setup = WpsInfo.KEYPAD;
+
+        } else {
+            model.showError(getString(R.string.unknown_authentication_method), piPedalConnection.getDisplayName());
+            onConnectionFailed();
+            return;
+        }
+
+        Log.i(TAG, "Connecting to " + device.deviceName);
+        connectingDevice = piPedalConnection.getP2pDeviceAddress();
+        setConnectingDeviceState(PiPedalConnection.ConnectingState.ConnectRequested);
+        piPedalConnection.setConnectingState(PiPedalConnection.ConnectingState.ConnectRequested);
+
+        onP2pServicesChanged();
+
+        wifiP2pManager.connect(wifiP2pChannel, config, new WifiP2pManager.ActionListener() {
+            @Override
+            public void onSuccess() {
+                // piPedalConnection.setStatus(ConnectionStatus.Connected);
+                //        (piPedalConnection);
+            }
+
+            @Override
+            public void onFailure(int errorCode) {
+                onConnectionFailed();
+                model.showError(getP2pError(errorCode), piPedalConnection.getDisplayName());
+
+                wifiP2pManager.requestConnectionInfo(DeviceScanner.this.wifiP2pChannel, null);
+
+                refreshPeers();
+            }
+        });
+        // refreshPeers();
+    }
+
+    private void setConnectingDeviceState(PiPedalConnection.ConnectingState state) {
+        PiPedalConnection piPedalConnection = getConnectingConnection();
+        if (piPedalConnection != null) {
+            if (piPedalConnection.getConnectingState() != state) {
+                piPedalConnection.setConnectingState(state);
+                if (piPedalConnection.getStatus() == ConnectionStatus.ConnectedNoServiceAddress) {
+                    asyncRestartDnsSdQuery(); // poke the server again since we may have lost the notification because of connect traffic.
+                    startP2pUpnpDiscovery();
+                }
+                onP2pServicesChanged();
+            }
+
+        }
+        if (state == PiPedalConnection.ConnectingState.Failed) {
+            this.connectingDevice = null;
+        }
+
+    }
+
+    private void refreshConnections() {
+        if (!HasPermissions()) {
+            return; // if we fail now, abandon all hope. :-(
+        }
+        wifiP2pManager.requestConnectionInfo(
+                wifiP2pChannel,
+                new WifiP2pManager.ConnectionInfoListener() {
+                    @Override
+                    public void onConnectionInfoAvailable(WifiP2pInfo wifiP2pInfo) {
+                        if (wifiP2pInfo.groupFormed) {
+                            Log.i(TAG, String.format("Connected to group already!{}", wifiP2pInfo.groupOwnerAddress));
+
+                        }
+//                        onConnectionResult(
+//                                ConnectionStatus.Connected,
+//                                wifiP2pGroup.getOwner(),
+//
+//                                wifiP2pGroupInfo.);
+
+                    }
+                });
+    }
+
+    private void refreshPeers() {
+        if (!HasPermissions()) {
+            return; // if we fail now, abandon all hope. :-(
+        }
+        wifiP2pManager.requestPeers(wifiP2pChannel, new P2pPeerListListener());
+    }
+
+    public void onP2pBroadcastReceived(Context context, Intent intent) {
+        if (DISABLE_P2P_SUPPORT)
+        {
+            return;
+        }
+        String action = intent.getAction();
+        if (action.equals(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION)) {
+            if (wifiP2pManager != null) {
+                if (!HasPermissions()) {
+                    return;
+                }
+                wifiP2pManager.requestPeers(wifiP2pChannel, new P2pPeerListListener());
+            }
+        } else if (action.equals(WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION)) {
+            WifiP2pInfo info = (WifiP2pInfo) intent.getParcelableExtra(WifiP2pManager.EXTRA_WIFI_P2P_INFO);
+            WifiP2pGroup wifiP2pGroup = intent.getParcelableExtra(WifiP2pManager.EXTRA_WIFI_P2P_GROUP);
+            if (info != null) {
+                Log.i(TAG, "P2P Connection changed. " + info);
+
+                if (info.groupFormed) {
+                    InetAddress address = info.groupOwnerAddress;
+                    Log.i(TAG, "WIFI_P2P_CONNECTION_CHANGED_ACTION: group formed.");
+                    onConnectionResult(
+                            ConnectionStatus.Connected,
+                            wifiP2pGroup.getOwner(),
+                            address
+
+                    );
+                    onConnectionsUpdated();
+                }
+            } else {
+                Log.e(TAG, "P2P Connection changed. info=null");
+                onConnectionFailed();
+            }
+            //wifiP2pManager.requestPeers(wifiP2pChannel, new P2pPeerListListener());
+        } else if (action == WifiP2pManager.WIFI_P2P_DISCOVERY_CHANGED_ACTION) {
+            int state = intent.getIntExtra(WifiP2pManager.EXTRA_DISCOVERY_STATE, -1);
+            Log.d(TAG, "P2P DISCOVERY_CHANGED_ACTION " + (state == WifiP2pManager.WIFI_P2P_DISCOVERY_STARTED ? "Started" : "Stopped") + "=" + state);
+        } else if (action == WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION) {
+            int state = intent.getIntExtra(WifiP2pManager.EXTRA_WIFI_STATE, -1);
+            Log.d(TAG, "WIFI_P2P_STATE_CHANGED_ACTION " + (state == WifiP2pManager.WIFI_P2P_STATE_ENABLED ? "Enabled" : "Disabled") + "=" + state);
+        }
+    }
+
+    private void onConnected(PiPedalConnection service) {
+        asyncStopScan().andCatch((e) -> {
+            Log.e(TAG, "asyncStopScan failed. " + e.getMessage());
+        });
+        model.setConnection(service);
+    }
+
+    public interface StatusChangedListener {
+        void onStatusChanged(PiPedalConnection connection);
+
+    }
+
+    private StatusChangedListener statusChangedListener;
+
+    public void setStatusChangedListener(StatusChangedListener listener) {
+        this.statusChangedListener = listener;
+    }
+
+
+    private void onStatusChanged(PiPedalConnection piPedalConnection) {
+        if (statusChangedListener != null) {
+            statusChangedListener.onStatusChanged(piPedalConnection);
+        }
+    }
+
+    String getP2pError(int errorCode) {
+        switch (errorCode) {
+            case WifiP2pManager.P2P_UNSUPPORTED:
+                return getString(R.string.p2p_not_supported);
+            case WifiP2pManager.BUSY:
+                return getString(R.string.p2p_busy_try_again);
+            default:
+            case WifiP2pManager.ERROR:
+                return getString(R.string.p2p_error);
+
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    public void disconnect() {
+        if (wifiP2pManager != null && wifiP2pChannel != null) {
+            if (!HasPermissions()) {
+                return;
+            }
+            wifiP2pManager.requestGroupInfo(wifiP2pChannel, group -> {
+                if (group != null && wifiP2pManager != null && wifiP2pChannel != null) {
+                    wifiP2pManager.removeGroup(wifiP2pChannel, new WifiP2pManager.ActionListener() {
+
+                        @Override
+                        public void onSuccess() {
+                            Log.d(TAG, "removeGroup onSuccess -");
+                        }
+
+                        @Override
+                        public void onFailure(int reason) {
+                            Log.e(TAG, "removeGroup onFailure -" + reason);
+                        }
+                    });
+                }
+            });
+        }
+    }
+    public void cancelInvitation(Activity activity,PiPedalConnection piPedalConnection)
+    {
+        if (activity == null) return;
+        if (piPedalConnection.getStatus() == ConnectionStatus.ConnectedNoServiceAddress || piPedalConnection.getStatus() == ConnectionStatus.WaitingForIpAddress)
+        {
+            disconnectP2P(null);
+            restartScan(activity);
+
+        } else if (piPedalConnection.getStatus() == ConnectionStatus.Connecting) {
+            wifiP2pManager.cancelConnect(wifiP2pChannel, new WifiP2pManager.ActionListener() {
+                @Override
+                public void onSuccess() {
+                    restartScan(activity);
+                }
+
+                @Override
+                public void onFailure(int reason) {
+                    // Failed to cancel connection attempt
+                    // Add your code here to handle failure
+                    String failureReason = "";
+                    switch (reason) {
+                        case WifiP2pManager.P2P_UNSUPPORTED:
+                            failureReason = "Wi-Fi P2P is not supported on this device.";
+                            break;
+                        case WifiP2pManager.BUSY:
+                            failureReason = "The system is too busy to process the request.";
+                            break;
+                        case WifiP2pManager.ERROR:
+                            failureReason = "An internal error occurred.";
+                            break;
+                    }
+                    Log.e(TAG, "Failed to cancel invatiation. " + failureReason);
+                    restartScan(activity);
+                }
+            });
+        }
+
+    }
+    void updateIpAddress(PiPedalConnection connection)
+    {
+        WifiP2pDevice device = connection.getWifiP2pDevice();
+        if (device != null
+                && device.status == WifiP2pDevice.CONNECTED
+                && connection.getP2PInetAddress() == null
+                && wifiP2pManager != null
+                && getConnectingConnection() != null)
+        {
+            this.wifiP2pManager.requestConnectionInfo(wifiP2pChannel,
+                    new WifiP2pManager.ConnectionInfoListener() {
+                        @Override
+                        public void onConnectionInfoAvailable(WifiP2pInfo wifiP2pInfo) {
+                            handler.post(()-> {
+                                if (wifiP2pInfo.groupFormed && wifiP2pInfo.groupOwnerAddress != null && wifiP2pInfo.isGroupOwner)
+                                {
+                                    if (getConnectingConnection() != null) {
+                                        if (getConnectingConnection().getP2PInetAddress() == null) {
+                                            getConnectingConnection().setP2PInetAddress(wifiP2pInfo.groupOwnerAddress);
+                                            onConnectionsUpdated();
+                                            // if we're doing an automatic connect
+                                            if (lastP2PConnection != null)
+                                            {
+                                                // extend the search timeout. Another 20 seconds to resolve the IP address.
+                                                resetScanForDeviceTimeout();
+                                            }
+                                        }
+                                    }
+                                }
+                            });
+                        }
+                    }
+            );
+        }
+    }
+}

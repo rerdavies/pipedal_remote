@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="DesignSurface">
+    <option name="filePathToZoomLevelMap">
+      <map>
+        <entry key="..\:/BestBackup/AndroidStudio/PiPedal/app/src/main/res/drawable-anydpi/ic_circle_24px_bronze.xml" value="0.1475" />
+        <entry key="..\:/BestBackup/AndroidStudio/PiPedal/app/src/main/res/drawable/help-24px.xml" value="0.134" />
+        <entry key="..\:/BestBackup/AndroidStudio/PiPedal/app/src/main/res/layout-land/activity_sponsorship.xml" value="0.47581903276131043" />
+        <entry key="..\:/BestBackup/AndroidStudio/PiPedal/app/src/main/res/layout-land/fragment_sponsorship.xml" value="0.33" />
+        <entry key="..\:/BestBackup/AndroidStudio/PiPedal/app/src/main/res/layout-sw600dp/fragment_sponsorship.xml" value="0.17994791666666668" />
+        <entry key="..\:/BestBackup/AndroidStudio/PiPedal/app/src/main/res/layout/activity_main.xml" value="0.14" />
+        <entry key="..\:/BestBackup/AndroidStudio/PiPedal/app/src/main/res/layout/activity_sponsorship.xml" value="0.25" />
+        <entry key="..\:/BestBackup/AndroidStudio/PiPedal/app/src/main/res/layout/device_item.xml" value="0.33695652173913043" />
+        <entry key="..\:/BestBackup/AndroidStudio/PiPedal/app/src/main/res/layout/fragment_rationale.xml" value="0.15833333333333333" />
+        <entry key="..\:/BestBackup/AndroidStudio/PiPedal/app/src/main/res/layout/fragment_search_for_device.xml" value="0.35520833333333335" />
+        <entry key="..\:/BestBackup/AndroidStudio/PiPedal/app/src/main/res/layout/fragment_sponsorship.xml" value="0.25" />
+        <entry key="..\:/BestBackup/AndroidStudio/PiPedal/app/src/main/res/layout/item_sku.xml" value="0.35989583333333336" />
+        <entry key="..\:/BestBackup/AndroidStudio/PiPedal/app/src/main/res/layout/layout.xml" value="0.14621633176571183" />
+        <entry key="..\:/BestBackup/AndroidStudio/PiPedal/app/src/main/res/layout/pi_pedal_view_fragment.xml" value="0.35520833333333335" />
+        <entry key="..\:/BestBackup/AndroidStudio/PiPedal/app/src/main/res/layout/scanner_fragment.xml" value="0.33" />
+        <entry key="..\:/BestBackup/AndroidStudio/PiPedal/app/src/main/res/layout/search_animation.xml" value="0.5" />
+        <entry key="..\:/BestBackup/AndroidStudio/PiPedal/app/src/main/res/menu/scanner_menu.xml" value="0.35520833333333335" />
+        <entry key="..\:/BestBackup/AndroidStudioProjects-11-12-18/PiPedal/app/src/main/res/drawable-anydpi/ic_circle_24px_bronze.xml" value="0.1705" />
+        <entry key="..\:/BestBackup/AndroidStudioProjects-11-12-18/PiPedal/app/src/main/res/drawable-anydpi/ic_circle_24px_gold.xml" value="0.1705" />
+        <entry key="..\:/BestBackup/AndroidStudioProjects-11-12-18/PiPedal/app/src/main/res/drawable-anydpi/ic_circle_24px_silver.xml" value="0.1705" />
+        <entry key="..\:/BestBackup/AndroidStudioProjects-11-12-18/PiPedal/app/src/main/res/drawable-v24/ic_launcher_foreground.xml" value="0.10833333333333334" />
+        <entry key="..\:/BestBackup/AndroidStudioProjects-11-12-18/PiPedal/app/src/main/res/drawable/ic_launcher_background.xml" value="0.10833333333333334" />
+        <entry key="..\:/BestBackup/AndroidStudioProjects-11-12-18/PiPedal/app/src/main/res/drawable/ic_launcher_foreground.xml" value="0.1455" />
+        <entry key="..\:/BestBackup/AndroidStudioProjects-11-12-18/PiPedal/app/src/main/res/drawable/ic_refresh_black_24dp.xml" value="0.23125" />
+        <entry key="..\:/BestBackup/AndroidStudioProjects-11-12-18/PiPedal/app/src/main/res/drawable/ic_wifi_direct_black_24dp.xml" value="0.10833333333333334" />
+        <entry key="..\:/BestBackup/AndroidStudioProjects-11-12-18/PiPedal/app/src/main/res/layout-land/activity_sponsorship.xml" value="0.16" />
+        <entry key="..\:/BestBackup/AndroidStudioProjects-11-12-18/PiPedal/app/src/main/res/layout/activity_main.xml" value="0.20104166666666667" />
+        <entry key="..\:/BestBackup/AndroidStudioProjects-11-12-18/PiPedal/app/src/main/res/layout/activity_sponsorship.xml" value="0.22" />
+        <entry key="..\:/BestBackup/AndroidStudioProjects-11-12-18/PiPedal/app/src/main/res/layout/blank_fragment.xml" value="0.1" />
+        <entry key="..\:/BestBackup/AndroidStudioProjects-11-12-18/PiPedal/app/src/main/res/layout/device_item.xml" value="0.2609375" />
+        <entry key="..\:/BestBackup/AndroidStudioProjects-11-12-18/PiPedal/app/src/main/res/layout/fragment_rationale.xml" value="0.25" />
+        <entry key="..\:/BestBackup/AndroidStudioProjects-11-12-18/PiPedal/app/src/main/res/layout/fragment_search_for_device.xml" value="0.33" />
+        <entry key="..\:/BestBackup/AndroidStudioProjects-11-12-18/PiPedal/app/src/main/res/layout/item_sku.xml" value="0.33" />
+        <entry key="..\:/BestBackup/AndroidStudioProjects-11-12-18/PiPedal/app/src/main/res/layout/pi_pedal_view_fragment.xml" value="0.1453125" />
+        <entry key="..\:/BestBackup/AndroidStudioProjects-11-12-18/PiPedal/app/src/main/res/layout/scanner_fragment.xml" value="0.16" />
+        <entry key="..\:/BestBackup/AndroidStudioProjects-11-12-18/PiPedal/app/src/main/res/layout/sku_item.xml" value="0.16145833333333334" />
+        <entry key="..\:/BestBackup/AndroidStudioProjects-11-12-18/PiPedal/app/src/main/res/layout/text_item.xml" value="0.33" />
+        <entry key="..\:/BestBackup/AndroidStudioProjects-11-12-18/PiPedal/app/src/main/res/menu/scanner_menu.xml" value="0.5" />
+      </map>
+    </option>
+  </component>
+  <component name="EntryPointsManager">
+    <list size="1">
+      <item index="0" class="java.lang.String" itemvalue="android.webkit.JavascriptInterface" />
+    </list>
+  </component>
+  <component name="ProjectRootManager" version="2" languageLevel="JDK_17" default="true" project-jdk-name="jbr-17" project-jdk-type="JavaSDK">
+    <output url="file://$PROJECT_DIR$/build/classes" />
+  </component>
+  <component name="ProjectType">
+    <option name="id" value="Android" />
+  </component>
+  <component name="VisualizationToolProject">
+    <option name="state">
+      <ProjectState>
+        <option name="scale" value="0.025" />
+      </ProjectState>
+    </option>
+  </component>
+</project>

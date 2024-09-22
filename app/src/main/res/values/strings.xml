@@ -1,0 +1,91 @@
+<resources>
+    <string name="app_name">PiPedal</string>
+    <string name="wifi_direct_connection">WiFi Direct</string>
+    <string name="device_content_description">Device</string>
+    <string name="ok">OK</string>
+    <string name="permission_denied">Permission denied.</string>
+    <string name="unknown_authentication_method">Unknown authentication method.</string>
+    <string name="wifi_direct_service">Wifi Direct Service</string>
+    <string name="no_devices_found">No devices found.</string>
+    <string name="default_network_name">Local network</string>
+    <string name="ethernet_network_name">Local Network</string>
+    <string name="loopback_network_name">On this device</string>
+    <string name="wifi_network_name">WiFi</string>
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="rationale_text">PiPedal requires PRECISE location permissions in order to discover PiPedal devices on the local Wi-Fi connection, or via Wi-Fi Direct. APPROXIMATE location permissions are not sufficient.</string>
+    <string name="nearby_device_rationale_text">PiPedal needs the following permission in order to discover and connect to PiPedal devices on the local Wi-Fi network.</string>
+    <string name="rationale_quit_button"><![CDATA[< Quit]]></string>
+    <string name="rational_proceed_button"><![CDATA[Proceed >]]></string>
+    <string name="scanning_for_device__device_name">Searching for \'%s\'...</string>
+    <string name="connecting_to_device__device_name">Connecting to \'%s\'...</string>
+    <string name="resolving_device_address__device_name">Resolving address of \'%s\'...</string>
+    <string name="sponsorship_pitch"><![CDATA[PiPedal started as a Pandemic Project, a labor of love, and grew into something extraordinary.
+But I can no longer afford to continue development without your support.\n\n-- Robin E. R. Davies.]]></string>
+    <string name="billing_unavailable">Billing service unavailable.</string>
+    <string name="developer_error">Developer error.</string>
+    <string name="service_timeout">Service timeout.</string>
+    <string name="feature_not_supported">Feature not supported.</string>
+    <string name="service_disconnected">Service disconnected.</string>
+    <string name="user_cancelled">User canceled.</string>
+    <string name="service_unavailable">Service unavailable.</string>
+    <string name="item_unavailable">Item unavailable.</string>
+    <string name="unexpected_error">Unexpected error.</string>
+    <string name="item_already_owned">Item already owned.</string>
+    <string name="item_not_owned">Item not owned.</string>
+    <string name="purchase_failed__reason">\"Purchase failed. %s \"</string>
+    <string name="purchase_ack_failed__error">Purchase acknowledgement failed. %s</string>
+    <string name="purchase_received">Thank you for your support.</string>
+    <string name="bronze_donor">Bronze Donor</string>
+    <string name="silver_donor">Silver Donor</string>
+    <string name="gold_donor">Gold Donor</string>
+    <string name="bronze_sponsor">Bronze Sponsor</string>
+    <string name="silver_sponsor">Silver Sponsor</string>
+    <string name="gold_sponsor">Gold Sponsor</string>
+    <string name="one_time_donation">One-time donation</string>
+    <string name="monthly_donation">Monthly donation</string>
+    <string name="dummy_text">Ipsem lorem</string>
+    <string name="help_title">Connecting to PiPedal</string>
+    <string name="connection_help_xx">
+        <html><body>
+        <p>To successfully connect to PiPedal, one of the following conditions must be true:</p>\n\n
+        <xul>
+        <xli>Your Android device and your Raspberry Pi must be connected to the same network via a Wi-Fi connection (or ethernet connection, if that applies).</xli>\n\n
+        <xli>Your Android device and your Raspberry Pi must be connected to the same network via a PiPedal <i>Auto-Hotpost</i></xli>\n\n
+        </xul>\n\n
+        <p>
+        If you are connecting to a PiPedal <i>Auto-Hotspot</i> for the first time, you must connect to the Wi-Fi hotspot using the Android Wi-Fi network user interface. Click on <b><i>Connect to Wi-Fi network</i></b> and
+            select the PiPedal Wi-Fi hotspot from there.</p>\n\n
+        The way the <i>PiPedal auto-hotspot</i> feature is intended to work is that:\n\n
+        <li>When you are at home, your Android device and your Raspberry Pi will connect to each other using your home Wi-Fi router.</li>\n\n
+        <li>When you are playing away from home, your Raspberry Pi will not be able to find your home Wi-Fi router, so it will automatically start a Wi-Fi hotspot. Your Android device also won\'t be able to find your home
+        Wi-Fi router, but will find the Wi-Fi hotspot on the Raspberry Pi, and will connect to it automatically, because it remembers it.</li>\n\n
+        Either way, your Android device connects to a Wi-Fi network that the Raspberry Pi is using, and the PiPedal client automatically discovers and connects to the Raspberry Pi.\n\n
+        To get this to work, you will have to configure PiPedal to start up a hotspot network. The <i>Auto-Hotspot connection</i> is not configured by default. Consult PiPedal\'s <a href="https://rerdavies.github.io/pipedal/Configuring.html">online documentation</a> for a discussion of how to configure Pipedal\'s Auto-Hotspot.\n\n
+        You should configure the PiPedal Auto-Hotspot now, so that, when you do take PiPedal out on an adventure away from home, you will be able to connect. When you are away from home, you may not have the tools, and the Wi-Fi router
+        you need to change PiPedals configuration on your Raspberry Pi. So, do it now, and test that it works before you try to use PiPedal outside of your home.\n\n
+        If you have multiple PiPedal devices, you can switch connections from the PiPedal user-interface by selecting <b><i>Connect to a different device</i></b> from the PiPedal\'s <b><i>Settings</i></b> panel.
+        </body></html>
+    </string>
+    <string name="p2p_error">Failed. Try again.</string>
+    <string name="p2p_busy_try_again">Busy. Try again.</string>
+    <string name="p2p_not_supported">Wi-Fi Direct not supported.</string>
+    <string name="select_a_device_to_connect_to">Select a device to connect to</string>
+    <string name="searching_for_device">Searching for device...</string>
+    <string name="reconnecting">Reconnecting</string>
+    <string name="connect_hint">When connecting to a PiPedal auto-hotspot for the first time, you must connect using the Android Wi-Fi Network user interface in order
+    to set a password for the Wi-Fi hotspot network. After that Android should auto-connect to the hotspot whenever it is visible.
+    </string>
+    <string name="xxx">xxx</string>
+
+    <string-array name="connection_status">
+        <item></item>
+        <item>Connected</item>
+        <item>Failed</item>
+        <item>Connecting...</item>
+        <item>Unavailable</item>lis
+        <item>Resolving...</item>
+        <item></item>
+        <item>Resolving address</item>
+    </string-array>
+
+</resources>

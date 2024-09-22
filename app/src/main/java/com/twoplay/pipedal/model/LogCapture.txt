@@ -1,0 +1,112 @@
+     WFD R2 DeviceInfo: -1
+2022-04-12 04:53:28.123 1785-2350/? D/NsdService: Native daemon message SERVICE_RESOLVED: 608 838 "PiPedal._pipedal._tcp.local." "raspberrypi.local." 81 11 "CmlkPTEzMy0yNDM="
+2022-04-12 04:53:28.123 1785-2350/? D/NsdService: mdnssd [stop-resolve, 838]
+2022-04-12 04:53:28.124 1098-1176/? W/netd: dnssd_clientstub DNSServiceProcessResult called with NULL DNSServiceRef
+2022-04-12 04:53:28.124 1785-2350/? D/NsdService: mdnssd [getaddrinfo, 839, raspberrypi.local.]
+2022-04-12 04:53:28.125 23052-23052/com.twoplay.pipedal D/DeviceScanner: --- wifi peers--
+2022-04-12 04:53:28.125 23052-23052/com.twoplay.pipedal D/DeviceScanner:    Device: PiPedal
+     deviceAddress: de:a6:32:d4:a1:a4
+     primary type: 1-0050F204-1
+     secondary type: null
+     wps: 256
+     grpcapab: 43
+     devcapab: 37
+     status: 3
+     wfdInfo: WFD enabled: trueWFD DeviceInfo: 0
+     WFD CtrlPort: 0
+     WFD MaxThroughput: 0
+     WFD R2 DeviceInfo: -1
+2022-04-12 04:53:28.126 23052-23052/com.twoplay.pipedal D/DeviceScanner:    Device: Sharp Roku TV - 318
+     deviceAddress: 32:52:cb:f3:a1:47
+     primary type: 7-0050F204-1
+     secondary type: null
+     wps: 128
+     grpcapab: 43
+     devcapab: 37
+     status: 3
+     wfdInfo: WFD enabled: trueWFD DeviceInfo: 17
+     WFD CtrlPort: 7236
+     WFD MaxThroughput: 150
+     WFD R2 DeviceInfo: -1
+2022-04-12 04:53:28.126 23052-23052/com.twoplay.pipedal D/DeviceScanner:    Device: Roku 3
+     deviceAddress: b2:a7:37:b3:72:1f
+     primary type: 7-0050F204-1
+     secondary type: null
+     wps: 128
+     grpcapab: 43
+     devcapab: 53
+     status: 3
+     wfdInfo: WFD enabled: trueWFD DeviceInfo: 273
+     WFD CtrlPort: 7236
+     WFD MaxThroughput: 150
+     WFD R2 DeviceInfo: -1
+2022-04-12 04:53:28.127 1785-2350/? D/NsdService: Native daemon message SERVICE_GET_ADDR_SUCCESS: 612 839 "raspberrypi.local." 120 10.0.0.252
+2022-04-12 04:53:28.128 1785-2350/? D/NsdService: mdnssd [stop-getaddrinfo, 839]
+2022-04-12 04:53:28.129 1098-1176/? W/netd: dnssd_clientstub DNSServiceProcessResult called with NULL DNSServiceRef
+2022-04-12 04:53:28.130 1785-2350/? E/NsdService: id 839 for SERVICE_GET_ADDR_SUCCESS has no client mapping
+2022-04-12 04:53:28.130 1785-2350/? E/NsdService: Unhandled { when=-3ms what=393242 obj=com.android.server.NsdService$NativeEvent@33da579 target=com.android.internal.util.StateMachine$SmHandler }
+2022-04-12 04:53:28.130 1785-2350/? E/NsdService: id 839 for SERVICE_GET_ADDR_SUCCESS has no client mapping
+2022-04-12 04:53:28.130 1785-2350/? E/NsdService: Unhandled { when=-4ms what=393242 obj=com.android.server.NsdService$NativeEvent@e4082be target=com.android.internal.util.StateMachine$SmHandler }
+2022-04-12 04:53:28.131 23052-23052/com.twoplay.pipedal D/DeviceScanner: --- wifi peers--
+2022-04-12 04:53:28.132 23052-23052/com.twoplay.pipedal D/DeviceScanner:    Device: PiPedal
+     deviceAddress: de:a6:32:d4:a1:a4
+     primary type: 1-0050F204-1
+     secondary type: null
+     wps: 256
+     grpcapab: 43
+     devcapab: 37
+     status: 3
+     wfdInfo: WFD enabled: trueWFD DeviceInfo: 0
+     WFD CtrlPort: 0
+     WFD MaxThroughput: 0
+     WFD R2 DeviceInfo: -1
+2022-04-12 04:53:28.132 23052-23052/com.twoplay.pipedal D/DeviceScanner:    Device: Sharp Roku TV - 318
+     deviceAddress: 32:52:cb:f3:a1:47
+     primary type: 7-0050F204-1
+     secondary type: null
+     wps: 128
+     grpcapab: 43
+     devcapab: 37
+     status: 3
+     wfdInfo: WFD enabled: trueWFD DeviceInfo: 17
+     WFD CtrlPort: 7236
+     WFD MaxThroughput: 150
+     WFD R2 DeviceInfo: -1
+2022-04-12 04:53:28.133 23052-23052/com.twoplay.pipedal D/DeviceScanner:    Device: Roku 3
+     deviceAddress: b2:a7:37:b3:72:1f
+     primary type: 7-0050F204-1
+     secondary type: null
+     wps: 128
+     grpcapab: 43
+     devcapab: 53
+     status: 3
+     wfdInfo: WFD enabled: trueWFD DeviceInfo: 273
+     WFD CtrlPort: 7236
+     WFD MaxThroughput: 150
+     WFD R2 DeviceInfo: -1
+2022-04-12 04:53:28.646 1785-2347/? D/ConnectivityService: NetReassign [no changes]
+2022-04-12 04:53:28.963 602-624/? D/OPS_SERVICE: OPS Received command id = 0
+2022-04-12 04:53:28.963 602-624/? D/OPS_SERVICE: set_display_clock_vote 1 driver fd 36
+2022-04-12 04:53:28.966 602-624/? D/OPS_SERVICE: drmIOCTL success at 1 time(s) for clk_vote 1
+2022-04-12 04:53:28.967 602-624/? D/OPS_SERVICE: ioctl_continue_command finished! and return 0
+2022-04-12 04:53:28.967 602-624/? D/OPS_SERVICE: before calling ioctl to read the next ops_cmd
+2022-04-12 04:53:28.969 602-624/? D/OPS_SERVICE: OPS Received command id = 0
+2022-04-12 04:53:28.969 602-624/? D/OPS_SERVICE: set_display_clock_vote 0 driver fd 36
+2022-04-12 04:53:28.971 602-624/? D/OPS_SERVICE: drmIOCTL success at 1 time(s) for clk_vote 0
+2022-04-12 04:53:28.971 602-624/? D/OPS_SERVICE: ioctl_continue_command finished! and return 0
+2022-04-12 04:53:28.971 602-624/? D/OPS_SERVICE: before calling ioctl to read the next ops_cmd
+2022-04-12 04:53:29.176 2491-2491/? D/PowerNotificationWarningsGoogleImpl: onReceive: android.intent.action.BATTERY_CHANGED
+2022-04-12 04:53:29.180 15001-15001/? D/DeviceStatisticsService: chargerType=2 batteryLevel=100 totalBatteryCapacity=4094000
+2022-04-12 04:53:29.185 2491-2491/? D/BatteryInfoBroadcast: onReceive: android.intent.action.BATTERY_CHANGED isPowerSaveMode: false
+2022-04-12 04:53:29.186 2491-2491/? D/BatteryDefenderNotification: isPlugged: true | isOverheated: false | defenderEnabled: false | isCharged: true
+2022-04-12 04:53:29.191 2491-2491/? I/ReverseChargingControl: handleIntentForReverseCharging(): rtx=0 wlc=0 plgac=0 ac=0 acrtx=0 extra=2 this=com.google.android.systemui.reversecharging.ReverseChargingController@39d4ab7
+2022-04-12 04:53:29.191 2491-15449/? D/PowerUI: can't show warning due to - plugged: true status unknown: false
+2022-04-12 04:53:29.268 1145-2404/? I/WifiHAL: event received NL80211_CMD_VENDOR, vendor_id = 0x1374, subcmd = 0x6a
+2022-04-12 04:53:29.269 1394-1394/? I/cnss-daemon: nl80211 response handler invoked
+2022-04-12 04:53:29.269 1394-1394/? I/cnss-daemon: nl80211_response_handler: cmd 103, vendorID 4980, subcmd 106  received
+2022-04-12 04:53:29.418 1145-2404/? I/WifiHAL: event received NL80211_CMD_VENDOR, vendor_id = 0x1374, subcmd = 0x6b
+2022-04-12 04:53:29.419 1394-1394/? I/cnss-daemon: nl80211 response handler invoked
+2022-04-12 04:53:29.419 1394-1394/? I/cnss-daemon: nl80211_response_handler: cmd 103, vendorID 4980, subcmd 107  received
+2022-04-12 04:53:29.423 15004-15004/? I/wpa_supplicant: P2P-DEVICE-FOUND 30:52:cb:f3:a1:49 p2p_dev_addr=32:52:cb:f3:a1:47 pri_dev_type=6-0050F204-1 name='DIRECT-roku-318-25529E' config_methods=0x80 dev_capab=0x25 group_capab=0x2b wfd_dev_info=0x00111c440096 vendor_elems=1 new=0
+2022-04-12 04:53:29.426 1785-2342/? W/ContextImpl: Calling a method in the system process without a qualified user: android.app.ContextImpl.sendBroadcastMultiplePermissions:1214 android.content.Context.sendBroadcastWithMultiplePermissions:2262 com.android.server.wifi.p2p.WifiP2pServiceImpl$P2pStateMachine.sendBroadcastMultiplePermissions:3381 com.android.server.wifi.p2p.WifiP2pServiceImpl$P2pStateMachine.sendPeersChangedBroadcast:3397 com.android.server.wifi.p2p.WifiP2pServiceImpl$P2pStateMachine.access$5800:838
+2022-04-12 04:53:29.447 23052-23052/com.t
