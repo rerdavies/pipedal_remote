@@ -155,17 +155,29 @@
                 app:layout_constraintBottom_toTopOf="@id/wifi_button"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintVertical_bias="0.25" />
+                app:layout_constraintVertical_bias="0.25"
                 />
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/wifi_button"
                 android:layout_marginTop="16dp"
-                android:layout_marginEnd="48dp"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Connect to Wi-Fi Network"
                 app:layout_constraintTop_toBottomOf="@id/connect_hint"
+                app:layout_constraintBottom_toTopOf="@id/ip_address_button"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                style="@style/Widget.Material3.Button.TextButton.Dialog"
+                />
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/ip_address_button"
+                android:layout_marginTop="16dp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Connect to IP Address"
+                app:layout_constraintTop_toBottomOf="@id/wifi_button"
                 app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
                 style="@style/Widget.Material3.Button.TextButton.Dialog"
                 />

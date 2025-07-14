@@ -1,24 +1,14 @@
 package com.twoplay.pipedal.model;
 
-import android.net.InetAddresses;
 import android.os.Handler;
 import android.util.Log;
 
 import com.twoplay.pipedal.Promise;
 
 import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.net.HttpURLConnection;
-import java.net.InetAddress;
-import java.net.MalformedURLException;
-import java.net.Socket;
-import java.net.SocketAddress;
 import java.net.URL;
-import java.net.UnknownHostException;
-import java.nio.charset.Charset;
 
 /**
  * Copyright (c) 2015, sRobin Davies
@@ -27,8 +17,29 @@ import java.nio.charset.Charset;
 public class WebProbe {
 
     Handler handler;
+    Thread thread;
+    public static Promise<Boolean> checkForPiPedalWebsiteAsync(final String webAddress) {
+        final Handler handler = new Handler();
+        return new Promise<>(
+                (completion) -> {
+                    final Thread thread = new Thread(() -> {
+                        try {
+                            boolean result = checkForPiPedalWebsite("http://" + webAddress);
+                            handler.post(() -> {
+                                completion.fulfill(result);
+                            });
+                        } catch (Exception e) {
+                            handler.post(() -> {
+                                completion.reject(e);
 
-    public static boolean checkForPipedalWebsite(String webAddress)  throws Exception {
+                            });
+                        }
+                    });
+                    thread.start();
+                }
+        );
+    }
+    public static boolean checkForPiPedalWebsite(String webAddress)  throws Exception {
         // get manifest.json from the website, and verify that it contains "short_name": "PiPedal"
         HttpURLConnection connection = null;
         BufferedReader reader = null;
@@ -41,11 +52,11 @@ public class WebProbe {
             connection.setRequestMethod("GET");
 
             int responseCode = connection.getResponseCode();
-            if (responseCode != 200) throw new Exception("Invalid response code: " + responseCode);
+            if (responseCode >= 300) throw new Exception("Invalid response code: " + responseCode);
 
             reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
             StringBuilder responseBuilder = new StringBuilder();
-            String line = "";
+            String line;
             try {
                 while ((line = reader.readLine()) != null) {
                     responseBuilder.append(line);

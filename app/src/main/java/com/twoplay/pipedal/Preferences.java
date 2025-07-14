@@ -25,7 +25,16 @@ public class Preferences {
     private static final String KEY_SELECTED_SERVER_PORT = "selectedServerPort";
     private static final String KEY_P2P_UPNP_WORKING = "p2pupnpWorking2"; // ignore old setting values.
     private static final String KEY_P2P_NIGHT_MODE = "nightMode";
+    private static final String KEY_CONNECTION_IP_ADDRESS = "connectionIpAddress";
 
+    public static String getConnectionIpAddress(Context context)
+    {
+        return getSharedPreferences(context).getString(KEY_CONNECTION_IP_ADDRESS,"");
+    }
+    public static void setConnectionIpAddress(Context context, String ipAddress)
+    {
+        getSharedPreferences(context).edit().putString(KEY_CONNECTION_IP_ADDRESS,ipAddress).apply();
+    }
     public static ThemeUtils.ColorTheme getNightMode(Context context)
     {
         return ThemeUtils.ColorTheme.fromInt(getSharedPreferences(context).getInt(KEY_P2P_NIGHT_MODE, ThemeUtils.ColorTheme.System.toInt()));

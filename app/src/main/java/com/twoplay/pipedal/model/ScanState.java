@@ -12,5 +12,6 @@ public enum ScanState {
     ScanComplete,
     ViewWeb,
     ConnectionLost,
-    ChooseNewDevice, SearchingForInstance,
+    ChooseNewDevice,
+    SearchingForInstance,
 }

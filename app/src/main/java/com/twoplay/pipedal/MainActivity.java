@@ -1,6 +1,7 @@
 package com.twoplay.pipedal;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
@@ -9,28 +10,34 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
+import android.graphics.Rect;
 import android.net.wifi.p2p.WifiP2pManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.SystemClock;
-import android.view.KeyEvent;
-import android.webkit.WebView;
+import android.view.ViewGroup;
+import android.view.View;
+import android.view.WindowInsets;
+import android.view.WindowInsetsAnimation;
+import android.util.TypedValue;
+import androidx.annotation.RequiresApi;
 
 import com.twoplay.pipedal.model.Model;
 import com.twoplay.pipedal.model.ScanState;
-import com.twoplay.pipedal.model.LastP2Pconnection;
 import com.twoplay.pipedal.model.TerminatingViewModel;
-import com.twoplay.pipedal.model.LastP2Pconnection;
 
 import java.net.MalformedURLException;
 import java.net.URL;
 
+import java.util.List;
 import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.WindowCompat;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
@@ -50,6 +57,9 @@ public class MainActivity extends AppCompatActivity
         }
     };
     private TerminatingViewModel terminatingViewModel;
+    private ScrimLayout rootView;
+
+    private View mainContent;
 
     private void disconnectAndFinish() {
         if (model != null)
@@ -103,6 +113,7 @@ public class MainActivity extends AppCompatActivity
             Manifest.permission.CHANGE_NETWORK_STATE,
             Manifest.permission.INTERNET,
     };
+    @SuppressLint("InlinedApi")
     private String[] requiredPermissions13 = {
             android.Manifest.permission.NEARBY_WIFI_DEVICES,
             // android.Manifest.permission.ACCESS_FINE_LOCATION,
@@ -137,7 +148,6 @@ public class MainActivity extends AppCompatActivity
     }
 
     private void maybeRequestPermissions() {
-        boolean requested = false;
         if (!hasAllPermissions()) {
             if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                 if (!rationaleShown) {
@@ -158,7 +168,6 @@ public class MainActivity extends AppCompatActivity
                 if (ContextCompat.checkSelfPermission(
                         this, permission) !=
                         PackageManager.PERMISSION_GRANTED) {
-                    requested = true;
                     activityState = ActivityState.RequestingPermission;
 
                     // You can directly ask for the permission.
@@ -170,9 +179,7 @@ public class MainActivity extends AppCompatActivity
                 }
             }
         }
-        if (!requested) {
-            maybeSearchForExistingConnection();
-        }
+        maybeSearchForExistingConnection();
     }
 
     private void maybeSearchForExistingConnection() {
@@ -228,13 +235,12 @@ public class MainActivity extends AppCompatActivity
 
     private void onScanStateChanged(ScanState scanState) {
         switch (scanState) {
-//                setActivityState(ActivityState.SearchingForInstance);
-//                break;
             case SearchingForInstance:
             case ChooseNewDevice:
             case ConnectionLost:
             case Searching:
             case ErrorState:
+            case Uninitialized:
             case ScanComplete:
                 setActivityState(ActivityState.ShowScanner);
                 break;
@@ -249,27 +255,76 @@ public class MainActivity extends AppCompatActivity
     {
         if (activityState != ActivityState.ShowWebView) return null;
 
-        WebViewFragment webviewFragment = (WebViewFragment) (getSupportFragmentManager().findFragmentById(R.id.web_container_view));
-        return webviewFragment;
+        return (WebViewFragment) (getSupportFragmentManager().findFragmentById(R.id.web_container_view));
     }
 
-    @Override
-    public boolean onKeyDown(int keyCode, KeyEvent event) {
-        // if the web view can navigate back, do it.
-        if ((keyCode == KeyEvent.KEYCODE_BACK)) {
-            WebViewFragment webViewFragment = getWebViewFragment();
-            if (webViewFragment != null) {
-                if (webViewFragment.NavigateBack()) {
-                    return true;
-                }
+
+    private OnBackPressedCallback backPressedCallback = null;
+    private void handleBackPressed() {
+        WebViewFragment webViewFragment = getWebViewFragment();
+        if (webViewFragment != null) {
+            if (webViewFragment.NavigateBack()) {
+                return; // we handled the back press.
             }
         }
-        // If it isn't the Back button or there's no web page history, bubble up to
-        // the default system behavior. Probably exit the activity.
-        return super.onKeyDown(keyCode, event);
+        if (backPressedCallback != null) {
+            backPressedCallback.remove();
+            backPressedCallback = null;
+        }
+        getOnBackPressedDispatcher().onBackPressed();
+
     }
 
 
+    private void setNormalStatusBar()
+    {
+        boolean darkMode = ThemeUtils.isDarkModeEnabled(this);
+
+        TypedValue typedValue = new TypedValue();getTheme().resolveAttribute(com.google.android.material.R.attr.colorSurface, typedValue, true);
+        int paperColor = typedValue.data;
+
+
+        WindowInsetsControllerCompat insetsController =
+                WindowCompat.getInsetsController(getWindow(), this.rootView);
+        insetsController.setAppearanceLightStatusBars(!darkMode);
+        insetsController.setAppearanceLightNavigationBars(!darkMode);
+
+
+        this.mainContent.setBackgroundColor(paperColor);
+
+        this.rootView.setStatusBarColor(paperColor);
+        this.rootView.setNavigationBarColorXX(paperColor);
+
+    }
+    private void setWebviewStatusBar()
+    {
+        WindowInsetsControllerCompat insetsController =
+                WindowCompat.getInsetsController(getWindow(), this.rootView);
+        if (ThemeUtils.isDarkModeEnabled(this)) {
+
+            int paperColor = ContextCompat.getColor(this, R.color.webStatusBarColorDark);
+
+            insetsController.setAppearanceLightStatusBars(false);
+            insetsController.setAppearanceLightNavigationBars(false);
+            this.rootView.setStatusBarColor(paperColor);
+            this.rootView.setNavigationBarColorXX(paperColor);
+
+
+        } else {
+            int statusBarColor = ContextCompat.getColor(this, R.color.webStatusBarColorLight);
+            int navColor = ContextCompat.getColor(this, R.color.webNavBarColorLight);
+            insetsController.setAppearanceLightStatusBars(true);
+            insetsController.setAppearanceLightNavigationBars(true);
+
+            this.rootView.setStatusBarColor(navColor);
+            this.rootView.setNavigationBarColorXX(navColor);
+
+        }
+
+    }
+    boolean isWebView() {
+        return this.activityState == ActivityState.ShowWebView;
+    }
     private void setActivityState(ActivityState activityState) {
         if (activityState != this.activityState) {
             this.activityState = activityState;
@@ -279,18 +334,21 @@ public class MainActivity extends AppCompatActivity
                             .setReorderingAllowed(true)
                             .replace(R.id.fragment_container_view, SponsorshipFragment.class, null)
                             .commit();
+                    setNormalStatusBar();
                     break;
                 case SearchingForInstance:
                     getSupportFragmentManager().beginTransaction()
                             .setReorderingAllowed(true)
                             .replace(R.id.fragment_container_view, SearchForDeviceFragment.class, null)
                             .commit();
+                    setNormalStatusBar();
                     break;
                 case ShowRationale:
                     getSupportFragmentManager().beginTransaction()
                             .setReorderingAllowed(true)
                             .replace(R.id.fragment_container_view, RationaleFragment.class, null)
                             .commit();
+                    setNormalStatusBar();
                     break;
                 case ShowScanner:
                 {
@@ -298,6 +356,7 @@ public class MainActivity extends AppCompatActivity
                             .setReorderingAllowed(true)
                             .replace(R.id.fragment_container_view, ScannerFragment.class, null)
                             .commit();
+                    setNormalStatusBar();
                 }
                 break;
                 case ShowWebView: {
@@ -314,10 +373,11 @@ public class MainActivity extends AppCompatActivity
                                 serviceConnection.getName(),
                                 serviceConnection.getInstanceId(),
                                 port);
+                        setWebviewStatusBar();
 
-                    } catch (MalformedURLException e) {
+                    } catch (MalformedURLException ignored) {
 
-                    };
+                    }
 
                     // Remove the scanner fragment, revealing the web view underneath.
                     Fragment fragment = getSupportFragmentManager().findFragmentById(R.id.fragment_container_view);
@@ -359,44 +419,172 @@ public class MainActivity extends AppCompatActivity
     void updateSystemBarVisibility()
     {
 
-
         boolean hideSystemBars = isLandscape() ;
-
-
-        WindowInsetsControllerCompat insetsController = ViewCompat.getWindowInsetsController(getWindow().getDecorView());
-        if (insetsController == null) return;
-
-        // insetsController.setAppearanceLightStatusBars(activityState == ActivityState.ShowWebView);
-
-        if (hideSystemBars)
         {
-            insetsController.setSystemBarsBehavior(
-                    WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            );
-            insetsController.hide(WindowInsetsCompat.Type.statusBars());
-        } else {
-            insetsController.show(WindowInsetsCompat.Type.systemBars());
+            WindowInsetsControllerCompat rootInsetsController =
+                    WindowCompat.getInsetsController(getWindow(), this.rootView);
+
+
+        }
+        {
+            // set behavior of mainContent
+            WindowInsetsControllerCompat insetsController =
+                    WindowCompat.getInsetsController(getWindow(), this.rootView);
+
+
+            // insetsController.setAppearanceLightStatusBars(activityState == ActivityState.ShowWebView);
+
+            if (hideSystemBars) {
+                insetsController.setSystemBarsBehavior(
+                        WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                );
+                insetsController.hide(WindowInsetsCompat.Type.statusBars());
+            } else {
+                insetsController.show(WindowInsetsCompat.Type.statusBars());
+            }
         }
     }
 
     private final IntentFilter intentFilter = new IntentFilter();
 
     private boolean rationaleShown = false;
+
+    private boolean isAtLeastAndroid11() {
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.R;
+    }
+
+
+    private int containerHeight = -1;
+
+    private void setLayoutHeight(View view, int height)
+    {
+        ViewGroup.MarginLayoutParams mlp = (ViewGroup.MarginLayoutParams) view.getLayoutParams();
+        mlp.height = height;
+        view.setLayoutParams(mlp);
+    }
+    private void handleUiWindowInsets(View view) {
+        ViewCompat.setOnApplyWindowInsetsListener(view, (vx, insets) -> {
+                    return doApplyInsets(insets);
+                }
+        );
+    }
+    /** @noinspection SameReturnValue*/
+    private WindowInsetsCompat doApplyInsets(WindowInsetsCompat insets) {
+        rootView.setScrims(insets);
+
+        if (!isWebView()) {
+            var statusBarInsets = insets.getInsets(WindowInsetsCompat.Type.statusBars());
+            var imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime());
+            var navInsets = insets.getInsets(WindowInsetsCompat.Type.navigationBars());
+
+            ViewGroup.MarginLayoutParams mlp = (ViewGroup.MarginLayoutParams) mainContent.getLayoutParams();
+            mlp.leftMargin = statusBarInsets.left + navInsets.left;
+            mlp.topMargin = statusBarInsets.top;
+            mlp.rightMargin = statusBarInsets.right +  navInsets.right;
+            mlp.bottomMargin = navInsets.bottom ; // not  under the  nav bar.
+            mainContent.setLayoutParams(mlp);
+            return WindowInsetsCompat.CONSUMED;
+        }
+
+        WebViewFragment webviewFragment = getWebViewFragment();
+
+        var imeRect = insets.getInsets(WindowInsetsCompat.Type.ime());
+        var statusRect = insets.getInsets(WindowInsetsCompat.Type.statusBars());
+        var navRect = insets.getInsets(WindowInsetsCompat.Type.navigationBars());
+
+
+        int rootHeight = rootView.getHeight();
+        int rootWidth = rootView.getWidth();
+
+        Insets containerInsets = Insets.of(
+                imeRect.left + navRect.left,
+                statusRect.top+imeRect.top,
+                imeRect.right + navRect.right,
+                navRect.bottom);
+        assert webviewFragment != null;
+        Rect windowPosition = new Rect(
+                containerInsets.left,containerInsets.top,
+                rootWidth-containerInsets.right,
+                rootHeight-containerInsets.bottom);
+        webviewFragment.setImeInsets(windowPosition, imeRect.bottom);
+
+        // set layout without scroll inset.
+        // the web view fragment will handle the scroll
+        ViewGroup.LayoutParams layoutParams = mainContent.getLayoutParams();
+        if (layoutParams instanceof ViewGroup.MarginLayoutParams) {
+            ViewGroup.MarginLayoutParams marginLayoutParams = (ViewGroup.MarginLayoutParams) layoutParams;
+            marginLayoutParams.topMargin = statusRect.top;
+            marginLayoutParams.bottomMargin = navRect.bottom;  // NOT under the nav bar.
+            marginLayoutParams.leftMargin = navRect.left;
+            marginLayoutParams.rightMargin = navRect.right;
+            mainContent.setLayoutParams(marginLayoutParams);
+        }
+        // ViewCompat.requestApplyInsets(container);
+
+        return WindowInsetsCompat.CONSUMED;
+    }
+
+    @RequiresApi(Build.VERSION_CODES.R)
+    private void animateKeyboardDisplay() {
+
+        WindowInsetsAnimation.Callback cb = new WindowInsetsAnimation.Callback(WindowInsetsAnimation.Callback.DISPATCH_MODE_STOP) {
+            @NonNull
+            @Override
+            public WindowInsets onProgress(@NonNull WindowInsets insets_, @NonNull List<WindowInsetsAnimation> animations) {
+                WindowInsetsCompat insets = WindowInsetsCompat.toWindowInsetsCompat(insets_, mainContent);
+                doApplyInsets(insets);
+                return WindowInsets.CONSUMED;
+            }
+
+            @Override
+            public void onEnd(@NonNull WindowInsetsAnimation animation) {
+                super.onEnd(animation);
+            }
+        };
+
+        mainContent.setWindowInsetsAnimationCallback(cb);
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        ThemeUtils.loadUserPreferredTheme(this);
-        setTheme(ThemeUtils.getUserPreferredThemeResourceId());
+        getWindow().getDecorView(); // workaround for bug in 1.17beta2
+        WindowCompat.enableEdgeToEdge(getWindow());
+
+//        ThemeUtils.loadUserPreferredTheme(this);
+//        setTheme(ThemeUtils.getUserPreferredThemeResourceId());
         ThemeUtils.setUserPreferredThemeChangeListener((newTheme)->{
             this.recreate();
         });
 
-        updateSystemBarVisibility();
 
         setContentView(R.layout.activity_main);
+
+
+
         ViewModelProvider viewModelProvider = new ViewModelProvider(this);
         this.terminatingViewModel = viewModelProvider.get(TerminatingViewModel.class);
         this.model = viewModelProvider.get(Model.class);
+
+
+        this.rootView = findViewById(R.id.app_main_frame);
+        assert rootView != null;
+
+        this.mainContent = findViewById(R.id.main_content);
+        assert mainContent != null;
+
+
+        updateSystemBarVisibility();
+
+        //setIgnoreInsets(this.rootView);
+        handleUiWindowInsets(this.rootView);
+
+        rootView.requestApplyInsets();
+
+        if (isAtLeastAndroid11()) {
+              animateKeyboardDisplay();
+        }
+
         if (savedInstanceState != null)
         {
             savedInstanceState.getBoolean(KEY_RATIONALE_SHOWN,false);
@@ -415,11 +603,21 @@ public class MainActivity extends AppCompatActivity
         }
 
         getOnBackPressedDispatcher().addCallback(this.onBackPressed);
-
-
-
+        setNormalStatusBar();
         maybeRequestPermissions();
+
+        this.backPressedCallback =new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                handleBackPressed();
+            }
+        };
+
+        this.getOnBackPressedDispatcher().addCallback(
+                backPressedCallback
+        );
     }
+
     @Override
     protected void onStart() {
         cancelDisconnectAlarm();
@@ -430,10 +628,6 @@ public class MainActivity extends AppCompatActivity
     protected void onStop() {
         super.onStop();
 
-        if (model.hasWifiDirectConnection())
-        {
-            // setDisconnectAlarm();
-        }
     }
 
     private PendingIntent alarmIntent;

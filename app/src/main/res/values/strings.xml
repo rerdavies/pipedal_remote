@@ -16,11 +16,11 @@
     <string name="nearby_device_rationale_text">PiPedal needs the following permission in order to discover and connect to PiPedal devices on the local Wi-Fi network.</string>
     <string name="rationale_quit_button"><![CDATA[< Quit]]></string>
     <string name="rational_proceed_button"><![CDATA[Proceed >]]></string>
-    <string name="scanning_for_device__device_name">Searching for \'%s\'...</string>
-    <string name="connecting_to_device__device_name">Connecting to \'%s\'...</string>
-    <string name="resolving_device_address__device_name">Resolving address of \'%s\'...</string>
+    <string name="scanning_for_device__device_name">Searching for \'%s\'…</string>
+    <string name="connecting_to_device__device_name">Connecting to \'%s\'…</string>
+    <string name="resolving_device_address__device_name">Resolving address of \'%s\'…</string>
     <string name="sponsorship_pitch"><![CDATA[PiPedal started as a Pandemic Project, a labor of love, and grew into something extraordinary.
-But I can no longer afford to continue development without your support.\n\n-- Robin E. R. Davies.]]></string>
+But I can no longer afford to continue development without your support.\n\n— Robin E. R. Davies.]]></string>
     <string name="billing_unavailable">Billing service unavailable.</string>
     <string name="developer_error">Developer error.</string>
     <string name="service_timeout">Service timeout.</string>
@@ -70,7 +70,7 @@ But I can no longer afford to continue development without your support.\n\n-- R
     <string name="p2p_busy_try_again">Busy. Try again.</string>
     <string name="p2p_not_supported">Wi-Fi Direct not supported.</string>
     <string name="select_a_device_to_connect_to">Select a device to connect to</string>
-    <string name="searching_for_device">Searching for device...</string>
+    <string name="searching_for_device">Searching for device…</string>
     <string name="reconnecting">Reconnecting</string>
     <string name="connect_hint">When connecting to a PiPedal auto-hotspot for the first time, you must connect using the Android Wi-Fi Network user interface in order
     to set a password for the Wi-Fi hotspot network. After that Android should auto-connect to the hotspot whenever it is visible.
@@ -81,9 +81,9 @@ But I can no longer afford to continue development without your support.\n\n-- R
         <item></item>
         <item>Connected</item>
         <item>Failed</item>
-        <item>Connecting...</item>
+        <item>Connecting…</item>
         <item>Unavailable</item>lis
-        <item>Resolving...</item>
+        <item>Resolving…</item>
         <item></item>
         <item>Resolving address</item>
     </string-array>

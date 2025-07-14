@@ -93,9 +93,24 @@ public class Model
         }
     }
 
-    public void connectToDevice(Context context)
+    public void connectToDevice(final Context context)
     {
+        final String directAddress = Preferences.getConnectionIpAddress(context);
+        if (!directAddress.isEmpty())
+        {
+            WebProbe.checkForPiPedalWebsiteAsync(directAddress)
+            .andThen((result)->{
+                if (result) {
+                    this.setDirectConnection(directAddress);
+                } else {
+                    Preferences.setConnectionIpAddress(context,"");
+                    connectToDevice(context);
+                }
+            });
+            return;
+        }
         String selectedInstance = Preferences.getSelectedServerInstanceId(context);
+
         if (selectedInstance.isEmpty())
         {
             this.scanner.restartScan();
@@ -269,6 +284,20 @@ public class Model
             }
         }
     }
+    public void setDirectConnection(String ipAddress) {
+        {
+            isWebViewDisconnected = false;
+
+            DeviceConnection t = new DeviceConnection(ipAddress, "", "http://" + ipAddress);
+            currentConnection = t;
+            serviceConnection.setValue(t);
+            Log.d(TAG,"CONNECTION ADDRESS: " + t.getAddress());
+            getDeviceScanner().stopScan();
+            setScanState(ScanState.ViewWeb);
+        }
+    }
+
+
     private boolean showPageLoading_ = false;
     public boolean showPageLoading() {
         return showPageLoading_;

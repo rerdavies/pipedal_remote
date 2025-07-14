@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
+import android.graphics.Rect;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -21,22 +22,25 @@ import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 import android.widget.Toast;
-import com.twoplay.pipedal.ThemeUtils;
-
-import com.google.android.material.appbar.MaterialToolbar;
-import com.twoplay.pipedal.model.Model;
-import com.twoplay.pipedal.model.WebProbe;
-
-import java.net.InetAddress;
-import java.net.MalformedURLException;
-import java.net.NetworkInterface;
-import java.net.URL;
-import java.net.UnknownHostException;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
+
+import com.google.android.material.appbar.MaterialToolbar;
+import com.twoplay.pipedal.model.Model;
+import com.twoplay.pipedal.model.WebProbe;
+
+import org.json.JSONObject;
+import org.json.JSONTokener;
+
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.MalformedURLException;
+import java.net.NetworkInterface;
+import java.net.URL;
+import java.net.UnknownHostException;
 
 public class WebViewFragment extends Fragment {
 
@@ -56,6 +60,140 @@ public class WebViewFragment extends Fragment {
     private boolean retainedWebView = false;
     private MaterialToolbar appBar;
     private TextView addressTextView;
+
+
+    static class ImeInfo {
+        public ImeInfo(Rect containerPosition, int imeHeight) {
+            this.containerPosition = containerPosition;
+            this.imeHeight = imeHeight;
+        }
+        public Rect containerPosition;
+        public int imeHeight;
+    }
+    ImeInfo imeInfo = null;
+
+    static class FocusBoundsInfo {
+        public FocusBoundsInfo(float left, float top, float right, float bottom, float windowWidth, float windowHeight) {
+            this.left = left;
+            this.top = top;
+            this.right = right;
+            this.bottom = bottom;
+            this.windowWidth = windowWidth;
+            this.windowHeight = windowHeight;
+        }
+
+        public float left;
+        public float top;
+        public float right;
+        public float bottom;
+        public float windowWidth;
+        public float windowHeight;
+    }
+    interface FocusedElementBoundsCallback {
+        void onComplete(FocusBoundsInfo bounds);
+    }
+
+    private void getFocusedElementBounds(FocusedElementBoundsCallback callback)
+    {
+        String javascript = "javascript:getFocusedElementBounds()";
+        webView.evaluateJavascript(javascript,value-> {
+            try {
+                if (value.equals("null")) {
+                    callback.onComplete(null);
+                    return;
+                }
+                JSONObject object = (JSONObject) new JSONTokener(value).nextValue();
+
+                double left = object.getDouble("left");
+                double top = object.getDouble("top");
+                double right = object.getDouble("right");
+                double bottom = object.getDouble("bottom");
+                double windowWidt = object.getDouble("windowWidth");
+                double windowHeight = object.getDouble("windowHeight");
+                callback.onComplete(new FocusBoundsInfo((float) left,
+                        (float) top,
+                        (float) right,
+                        (float) bottom,
+                        (float) windowWidt,
+                        (float) windowHeight));
+                return;
+
+            } catch (Exception ignored)
+            {
+            }
+            callback.onComplete(null);
+        });
+
+
+    }
+
+    private FocusBoundsInfo focusBoundsInfo = null;
+    public void adjustWebviewForKeyboard()
+    {
+        int dy = 0;
+        if (this.imeInfo != null)
+        {
+            Log.i(TAG,"IME Rect: " + this.imeInfo.containerPosition.toString() + "ime height: " + imeInfo.imeHeight);
+        }
+        if (this.focusBoundsInfo != null && this.imeInfo != null )
+        {
+
+            int webViewHeight = this.webView.getHeight();
+            final float dpToPix = getContext().getResources().getDisplayMetrics().density;
+            double margin = 64*dpToPix;
+            double webToPxScale = webViewHeight/this.focusBoundsInfo.windowHeight;
+
+            double keyboardTop = webViewHeight - this.imeInfo.imeHeight;
+
+            double focusTop = this.focusBoundsInfo.top * webToPxScale; // top of element in webV    iew pixels.
+            double focusBottom = this.focusBoundsInfo.bottom * webToPxScale; // bottom of element in webView pixels.
+
+            double translatedBottom = focusBottom;
+            if (translatedBottom+margin > keyboardTop) {
+                translatedBottom = keyboardTop - margin;
+            }
+            double translatedTop = translatedBottom - (focusBottom - focusTop);
+            if (translatedTop < margin) {
+                // center in available space.
+                translatedTop = (keyboardTop/2) -(focusBottom-focusTop)/2;
+            }
+            dy = (int)(translatedTop-focusTop);
+            if (webViewHeight+dy < keyboardTop)
+            {
+                dy = (int)(keyboardTop-webViewHeight);
+            }
+            if (dy > 0) dy = 0;
+
+
+        }
+        webView.setTranslationY(dy);
+
+//        var lp = webView.getLayoutParams();
+//        if (!(lp instanceof FrameLayout.LayoutParams)){
+//           throw new RuntimeException("WebView parent is not a constraint layout.");
+//        }
+//        FrameLayout.LayoutParams layoutParams = (FrameLayout.LayoutParams)lp;
+//        if (layoutParams.topMargin != dy) {
+//            layoutParams.topMargin = dy;
+//            layoutParams.bottomMargin = -dy;
+//            webView.setLayoutParams(layoutParams);
+//        }
+    }
+
+    public void setImeInsets(Rect windowPosition, int imeHeight) {
+        var oldHeight = this.imeInfo != null? this.imeInfo.imeHeight : 0;
+        this.imeInfo = new ImeInfo(windowPosition,imeHeight);
+        // starting to show ime?
+        if (oldHeight == 0 && imeHeight != 0)
+        {
+            // then asynchronously request the bounds of the focused element from the broser.
+            this.getFocusedElementBounds((bounds) -> {
+                this.focusBoundsInfo = bounds;
+                this.adjustWebviewForKeyboard();
+            });
+        }
+        this.adjustWebviewForKeyboard();
+    }
 
 
     public interface ShowSponsorshipListener {
@@ -112,6 +250,7 @@ public class WebViewFragment extends Fragment {
                 Intent i = new Intent(Intent.ACTION_GET_CONTENT);
                 i.addCategory(Intent.CATEGORY_OPENABLE);
                 i.setType("*");
+                //noinspection deprecation
                 startActivityForResult(Intent.createChooser(i, "File Browser"), FILE_CHOOSER_RESULT_CODE);
             }
 
@@ -120,7 +259,7 @@ public class WebViewFragment extends Fragment {
             public boolean onShowFileChooser(WebView mWebView, ValueCallback<Uri[]> filePathCallback, WebChromeClient.FileChooserParams fileChooserParams) {
                 if (uploadMessage != null) {
                     uploadMessage.onReceiveValue(null);
-                    uploadMessage = null;
+
                 }
 
                 uploadMessage = filePathCallback;
@@ -202,7 +341,7 @@ public class WebViewFragment extends Fragment {
         if (savedInstanceState != null) {
             if (!retainedWebView) {
                 this.url = savedInstanceState.getString(WEB_URL_EXTRA, "");
-                if (!url.equals("")) {
+                if (!url.isEmpty()) {
                     webView.loadUrl(url);
                 }
             }
@@ -320,6 +459,17 @@ public class WebViewFragment extends Fragment {
                     continuation.fulfill(true);
                     return;
                 }
+                // Only need to wait for routing to settle if it's a 172.24.xx.xx address
+                if (inetAddress instanceof Inet4Address)
+                {
+                    Inet4Address inet4Address = (Inet4Address) inetAddress;
+                    byte[] address = inet4Address.getAddress();
+                    if (address[0] != 172 || address[1] != 24) {
+                        continuation.fulfill(true);
+                        return;
+                    }
+
+                }
                 int port = url.getPort();
 
 
@@ -376,7 +526,7 @@ public class WebViewFragment extends Fragment {
                         int retries = 0;
                         while (true) {
                             try {
-                                boolean result = WebProbe.checkForPipedalWebsite(myConnectionAddress);
+                                boolean result = WebProbe.checkForPiPedalWebsite(myConnectionAddress);
                                 Log.d(TAG,"WebProbe: site is a PiPedal website.");
                                 completion.fulfill(result);
                                 return;
@@ -468,6 +618,7 @@ public class WebViewFragment extends Fragment {
 
         @JavascriptInterface
         public boolean isAndroidHosted() {
+            Log.d(TAG,"isAndroidHosted() callback.");
 
             return true;
         }
@@ -490,13 +641,15 @@ public class WebViewFragment extends Fragment {
         }
         @JavascriptInterface
         public int getThemePreference() {
+
             return themePreference;
+
         }
 
         @JavascriptInterface
         public boolean isDarkTheme()
         {
-            return true;
+            return ThemeUtils.isDarkModeEnabled(getContext());
         }
 
 

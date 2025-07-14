@@ -8,6 +8,7 @@ package com.twoplay.pipedal;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.os.Build;
 import android.text.Editable;
 import android.text.Html;
 import android.text.Layout;
@@ -61,7 +62,14 @@ public class IndentTextHandler {
                 }
             } else if (tag.equalsIgnoreCase("xli")) {
                 if (opening) {
-                    output.setSpan(new BulletSpan(bulletMarginPx,0,bulletSizePx), output.length(), output.length(), Spanned.SPAN_MARK_MARK);
+                    BulletSpan bulletSpan = null;
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                        bulletSpan = new BulletSpan(bulletMarginPx,0,bulletSizePx);
+                    } else {
+                        bulletSpan = new BulletSpan(bulletMarginPx,0);
+                    }
+                    output.setSpan(
+                            bulletSpan, output.length(), output.length(), Spanned.SPAN_MARK_MARK);
                 } else {
                     Object span = getLast(output, BulletSpan.class);
                     int where = output.getSpanStart(span);

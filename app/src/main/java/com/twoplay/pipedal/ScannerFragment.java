@@ -19,10 +19,10 @@ import android.widget.TextView;
 
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.button.MaterialButton;
-import com.twoplay.pipedal.model.ConnectionType;
 import com.twoplay.pipedal.model.Model;
 import com.twoplay.pipedal.model.PiPedalConnection;
 import com.twoplay.pipedal.model.ScanState;
+import com.twoplay.pipedal.model.WebProbe;
 
 import java.net.Inet4Address;
 import java.net.InetAddress;
@@ -38,14 +38,13 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.fragment.app.Fragment;
-import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.ListAdapter;
 import androidx.recyclerview.widget.RecyclerView;
 
-public class ScannerFragment extends Fragment {
+public class ScannerFragment extends Fragment implements IpAddressDialogFragment.IpAddressDialogFragmentResult {
 
     private Model mModel;
     private ConstraintLayout searchingView;
@@ -59,6 +58,7 @@ public class ScannerFragment extends Fragment {
     private MaterialButton wifiSettingsButton;
     MaterialButton scanButton;
     MaterialButton cancelButton;
+    private MaterialButton ipAddressButton;
 
 
     private void showCancel(boolean show)
@@ -90,6 +90,8 @@ public class ScannerFragment extends Fragment {
         this.appBar = (MaterialToolbar) v.findViewById(R.id.app_bar);
         this.errorTextView = (TextView) v.findViewById(R.id.error_text);
         wifiSettingsButton = (MaterialButton)v.findViewById(R.id.wifi_button);
+        ipAddressButton = (MaterialButton)v.findViewById(R.id.ip_address_button);
+
         scanButton = v.findViewById(R.id.scan_again_button);
         cancelButton = v.findViewById(R.id.cancel_button);
 
@@ -102,6 +104,10 @@ public class ScannerFragment extends Fragment {
         } else {
             wifiSettingsButton.setVisibility(View.GONE);
         }
+        ipAddressButton.setOnClickListener((View vv) -> {
+            IpAddressDialogFragment.execute(this,Preferences.getConnectionIpAddress(getActivity()));
+        });
+
         scanButton.setOnClickListener((View vv) -> {
             mModel.getDeviceScanner().restartScan();
         });
@@ -467,6 +473,36 @@ public class ScannerFragment extends Fragment {
             e.printStackTrace();
         }
     }
+
+    @Override
+    public void onIpAddressResult(String ipAddress)
+    {
+        var webUrl = "  http://" + ipAddress;
+        try {
+            WebProbe.checkForPiPedalWebsiteAsync(ipAddress)
+            .andThen(result -> {
+                if (getActivity() == null) {
+                    return; // just abandon this attempt.
+                }
+                if (result) {
+                    Preferences.setConnectionIpAddress(getActivity(),ipAddress);
+                    mModel.setDirectConnection(ipAddress);
+                } else {
+                    ErrorDialogFragment.execute(this,"PiPedal web server not found at that address.\n\n"+webUrl,"Error");
+
+                }
+            }).andCatch((e) -> {
+                ErrorDialogFragment.execute(this,e.getMessage() + "\n\n"+webUrl,"Error");
+            });
+
+        } catch (Exception e)
+        {
+            ErrorDialogFragment.execute(this,"PiPedal web server not found at that address.","Error");
+        }
+
+        Preferences.setConnectionIpAddress(getActivity(),ipAddress);
+    }
+
 
 }
 
