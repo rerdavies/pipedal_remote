@@ -93,22 +93,28 @@ public class Model
         }
     }
 
-    public void connectToDevice(final Context context)
-    {
+    public void connectToDevice(final Context context_) {
+        final Context context = context_.getApplicationContext();
         final String directAddress = Preferences.getConnectionIpAddress(context);
-        if (!directAddress.isEmpty())
-        {
+        if (!directAddress.isEmpty()) {
+            setScanState(ScanState.SearchingForInstance);
             WebProbe.checkForPiPedalWebsiteAsync(directAddress)
-            .andThen((result)->{
-                if (result) {
-                    this.setDirectConnection(directAddress);
-                } else {
-                    Preferences.setConnectionIpAddress(context,"");
-                    connectToDevice(context);
-                }
-            });
+                    .andThen((result) -> {
+                        if (result) {
+                            this.setDirectConnection(directAddress);
+                        } else {
+                            Preferences.setConnectionIpAddress(context, "");
+                            connectToDevice2(context);
+                        }
+                    }).andCatch((e) -> {
+                        Preferences.setConnectionIpAddress(context, "");
+                        connectToDevice2(context);
+                    });
             return;
         }
+        connectToDevice2(context);
+    }
+    private void connectToDevice2(final Context context) {
         String selectedInstance = Preferences.getSelectedServerInstanceId(context);
 
         if (selectedInstance.isEmpty())
@@ -274,13 +280,15 @@ public class Model
                     (!connection.getServiceLocations().contains(t.getAddress()))
                     || !isWebPageValid)
             {
+
                 t = new DeviceConnection(connection.getDisplayName(), connection.getInstanceId(),connection.getBestConnection());
 
                 currentConnection = t;
+
                 serviceConnection.setValue(t);
                 Log.d(TAG,"CONNECTION ADDRESS: " + t.getAddress());
-                getDeviceScanner().stopScan();
-                setScanState(ScanState.ViewWeb);
+                getDeviceScanner().stopScan(false);
+                setScanState(ScanState.WebViewLoading);
             }
         }
     }
@@ -292,8 +300,8 @@ public class Model
             currentConnection = t;
             serviceConnection.setValue(t);
             Log.d(TAG,"CONNECTION ADDRESS: " + t.getAddress());
-            getDeviceScanner().stopScan();
-            setScanState(ScanState.ViewWeb);
+            getDeviceScanner().stopScan(false);
+            setScanState(ScanState.WebViewLoading);
         }
     }
 
@@ -304,7 +312,14 @@ public class Model
     }
     public void showPageLoading(boolean value)
     {
-        showPageLoading_ = value;
+        if (value != showPageLoading_) {
+            showPageLoading_ = value;
+            if (!value & this.scanState.getValue() == ScanState.WebViewLoading)
+            {
+                setScanState(ScanState.ViewWeb);
+            }
+        }
+
     }
     private boolean HasPermission()
     {

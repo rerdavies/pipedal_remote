@@ -15,11 +15,13 @@ import android.net.wifi.p2p.WifiP2pManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.SystemClock;
+import android.os.Handler;
 import android.view.ViewGroup;
 import android.view.View;
 import android.view.WindowInsets;
 import android.view.WindowInsetsAnimation;
 import android.util.TypedValue;
+
 import androidx.annotation.RequiresApi;
 
 import com.twoplay.pipedal.model.Model;
@@ -37,6 +39,7 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
+import androidx.core.splashscreen.SplashScreen;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -86,7 +89,10 @@ public class MainActivity extends AppCompatActivity
         ShowRationale,
         RequestingPermission,
         ShowScanner,
-        SearchingForInstance, ViewSponsorship, ShowWebView
+        SearchingForInstance,
+        ViewSponsorship,
+        WebViewLoading,
+        ShowWebView
     }
 
 
@@ -149,6 +155,7 @@ public class MainActivity extends AppCompatActivity
 
     private void maybeRequestPermissions() {
         if (!hasAllPermissions()) {
+            dismissSplashScreen();
             if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                 if (!rationaleShown) {
                     setActivityState(ActivityState.ShowRationale);
@@ -235,14 +242,20 @@ public class MainActivity extends AppCompatActivity
 
     private void onScanStateChanged(ScanState scanState) {
         switch (scanState) {
+            case Uninitialized:
             case SearchingForInstance:
+                setActivityState(ActivityState.SearchingForInstance);
+                break;
             case ChooseNewDevice:
             case ConnectionLost:
             case Searching:
             case ErrorState:
-            case Uninitialized:
             case ScanComplete:
+                dismissSplashScreen();
                 setActivityState(ActivityState.ShowScanner);
+                break;
+            case WebViewLoading:
+                setActivityState(ActivityState.WebViewLoading);
                 break;
             case ViewWeb:
                 setActivityState(ActivityState.ShowWebView);
@@ -253,7 +266,11 @@ public class MainActivity extends AppCompatActivity
 
     private WebViewFragment getWebViewFragment()
     {
-        if (activityState != ActivityState.ShowWebView) return null;
+        if (activityState != ActivityState.ShowWebView
+                && activityState != ActivityState.WebViewLoading  // :-(
+        ) {
+            return null;
+        }
 
         return (WebViewFragment) (getSupportFragmentManager().findFragmentById(R.id.web_container_view));
     }
@@ -304,8 +321,8 @@ public class MainActivity extends AppCompatActivity
 
             int paperColor = ContextCompat.getColor(this, R.color.webStatusBarColorDark);
 
-            insetsController.setAppearanceLightStatusBars(false);
-            insetsController.setAppearanceLightNavigationBars(false);
+//            insetsController.setAppearanceLightStatusBars(false);
+//            insetsController.setAppearanceLightNavigationBars(false);
             this.rootView.setStatusBarColor(paperColor);
             this.rootView.setNavigationBarColorXX(paperColor);
 
@@ -313,8 +330,8 @@ public class MainActivity extends AppCompatActivity
         } else {
             int statusBarColor = ContextCompat.getColor(this, R.color.webStatusBarColorLight);
             int navColor = ContextCompat.getColor(this, R.color.webNavBarColorLight);
-            insetsController.setAppearanceLightStatusBars(true);
-            insetsController.setAppearanceLightNavigationBars(true);
+//            insetsController.setAppearanceLightStatusBars(true);
+//            insetsController.setAppearanceLightNavigationBars(true);
 
             this.rootView.setStatusBarColor(navColor);
             this.rootView.setNavigationBarColorXX(navColor);
@@ -326,6 +343,16 @@ public class MainActivity extends AppCompatActivity
         return this.activityState == ActivityState.ShowWebView;
     }
     private void setActivityState(ActivityState activityState) {
+        switch (activityState) {
+            case SearchingForInstance:
+            case ShowScanner:
+            case Created:
+            case WebViewLoading:
+                    break;
+            default:
+                dismissSplashScreen();
+                break;
+        }
         if (activityState != this.activityState) {
             this.activityState = activityState;
             switch (activityState) {
@@ -359,7 +386,7 @@ public class MainActivity extends AppCompatActivity
                     setNormalStatusBar();
                 }
                 break;
-                case ShowWebView: {
+                case WebViewLoading: {
                     Model.DeviceConnection serviceConnection = model.serviceConnection.getValue();
 
                     assert serviceConnection != null;
@@ -373,11 +400,18 @@ public class MainActivity extends AppCompatActivity
                                 serviceConnection.getName(),
                                 serviceConnection.getInstanceId(),
                                 port);
-                        setWebviewStatusBar();
 
                     } catch (MalformedURLException ignored) {
 
                     }
+                    WebViewFragment webviewFragment = (WebViewFragment) (getSupportFragmentManager().findFragmentById(R.id.web_container_view));
+                    if (webviewFragment != null) {
+                        webviewFragment.setUrl(connectionAddress);
+                    }
+                }
+                    break;
+
+                case ShowWebView: {
 
                     // Remove the scanner fragment, revealing the web view underneath.
                     Fragment fragment = getSupportFragmentManager().findFragmentById(R.id.fragment_container_view);
@@ -388,10 +422,8 @@ public class MainActivity extends AppCompatActivity
                                 .commit();
                     }
 
-                    WebViewFragment webviewFragment = (WebViewFragment) (getSupportFragmentManager().findFragmentById(R.id.web_container_view));
-                    if (webviewFragment != null) {
-                        webviewFragment.setUrl(connectionAddress);
-                    }
+                    setWebviewStatusBar();
+
                 }
                 break;
                 default:
@@ -545,14 +577,63 @@ public class MainActivity extends AppCompatActivity
         mainContent.setWindowInsetsAnimationCallback(cb);
     }
 
+    private SplashScreen splashScreen = null;
+
+    public void dismissSplashScreen()
+    {
+        if (splashScreen != null) {
+            splashScreen.setKeepOnScreenCondition(() -> {
+                return false;
+            });
+            splashScreen = null;
+        }
+        cancelSplashScreenTimer();
+    }
+
+    private Handler handler = new Handler();
+    Runnable cancelSplashScreenRunnable = null;
+
+    private void cancelSplashScreenTimer() {
+        if (cancelSplashScreenRunnable != null) {
+            handler.removeCallbacks(cancelSplashScreenRunnable);
+            cancelSplashScreenRunnable = null;
+        }
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        this.setRequestedOrientation(Preferences.getScreenOrientation(this).getSystemFlags());
+
+        this.splashScreen = SplashScreen.installSplashScreen(this);
+
+        // ThemeUtils.applyUserPreferredTheme(this);
+
+        if (splashScreen != null) {
+
+            if (isAtLeastAndroid11()) {
+                splashScreen.setKeepOnScreenCondition(() -> true);
+                // Keep the splash screen on for 10 seconds.
+                // This is just for demonstration purposes.
+                // In a real app, you would dismiss the splash screen
+                // when your app is ready to display its content.
+                cancelSplashScreenRunnable = new Runnable() {
+                    @Override
+                    public void run() {
+                        dismissSplashScreen();
+                    }
+                };
+                handler.postDelayed(cancelSplashScreenRunnable, 10_000);
+            }
+
+        }
+
+
         getWindow().getDecorView(); // workaround for bug in 1.17beta2
         WindowCompat.enableEdgeToEdge(getWindow());
 
-//        ThemeUtils.loadUserPreferredTheme(this);
-//        setTheme(ThemeUtils.getUserPreferredThemeResourceId());
+
         ThemeUtils.setUserPreferredThemeChangeListener((newTheme)->{
             this.recreate();
         });
@@ -662,9 +743,15 @@ public class MainActivity extends AppCompatActivity
 
     @Override
     protected void onDestroy() {
+
+
         ThemeUtils.setUserPreferredThemeChangeListener(null);
+        dismissSplashScreen();
+        cancelSplashScreenTimer();
+
         if (isFinishing())
         {
+            handler.postDelayed(cancelSplashScreenRunnable, 10_000);
             cancelDisconnectAlarm();
             model.stopScan();
         }

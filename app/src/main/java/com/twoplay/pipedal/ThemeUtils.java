@@ -44,22 +44,33 @@ public class ThemeUtils {
         }
     };
 
-    public static void loadUserPreferredTheme(Context context)
+    public static void applyUserPreferredTheme(Context context)
     {
-        ColorTheme theme =  Preferences.getNightMode(context);
-        setUserPreferredTheme(theme);
-    }
-    public static int getUserPreferredThemeResourceId() {
-        switch (AppCompatDelegate.getDefaultNightMode()) {
-            case AppCompatDelegate.MODE_NIGHT_NO:
-                return R.style.Theme_PiPedal_LightMode; // Your light theme
-            case AppCompatDelegate.MODE_NIGHT_YES:
-                return R.style.Theme_PiPedal_DarkMode;  // Your dark theme
-            case AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM:
+        ColorTheme nightMode =  Preferences.getNightMode(context);
+        switch (nightMode) {
+            case Light: // Light mode
+                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
+                break;
+            case Dark: // Dark mode
+                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
+                break;
+            case System: // System default
             default:
-                return R.style.Theme_PiPedal; // Your default theme
+                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
+                break;
         }
     }
+//    public static int getUserPreferredThemeResourceId() {
+//        switch (AppCompatDelegate.getDefaultNightMode()) {
+//            case AppCompatDelegate.MODE_NIGHT_NO:
+//                return R.style.Theme_PiPedal_LightMode; // Your light theme
+//            case AppCompatDelegate.MODE_NIGHT_YES:
+//                return R.style.Theme_PiPedal_DarkMode;  // Your dark theme
+//            case AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM:
+//            default:
+//                return R.style.Theme_PiPedal; // Your default theme
+//        }
+//    }
 
     public static ColorTheme getUserPreferedTheme() {
         switch (AppCompatDelegate.getDefaultNightMode()) {
@@ -82,6 +93,7 @@ public class ThemeUtils {
     {
         ThemeUtils.listener = listener;
     }
+
     public static void setUserPreferredTheme(ColorTheme nightMode) {
         if (nightMode == getUserPreferedTheme())
         {

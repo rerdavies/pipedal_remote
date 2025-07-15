@@ -23,6 +23,11 @@ public class ErrorDialogFragment extends DialogFragment {
 
     public static void execute(Fragment parent, String message, String title)
     {
+        Activity activity = parent.getActivity();
+        if (activity instanceof MainActivity)
+        {
+            ((MainActivity)activity).dismissSplashScreen();
+        }
         Bundle bundle = new Bundle();
         bundle.putString(MESSAGE_EXTRA,message);
         bundle.putString(TITLE_EXTRA,title);

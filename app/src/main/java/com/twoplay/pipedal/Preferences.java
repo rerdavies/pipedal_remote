@@ -3,9 +3,8 @@ package com.twoplay.pipedal;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
-import com.twoplay.pipedal.ThemeUtils;
 
-import com.twoplay.pipedal.model.Model;
+import com.twoplay.pipedal.model.ScreenOrientation;
 
 import androidx.annotation.NonNull;
 
@@ -27,6 +26,10 @@ public class Preferences {
     private static final String KEY_P2P_NIGHT_MODE = "nightMode";
     private static final String KEY_CONNECTION_IP_ADDRESS = "connectionIpAddress";
 
+    private static final String KEY_KEEP_SCREEN_ON = "keepScreenOn";
+
+    private static final String KEY_ORIENTATION = "screenOrientation";
+
     public static String getConnectionIpAddress(Context context)
     {
         return getSharedPreferences(context).getString(KEY_CONNECTION_IP_ADDRESS,"");
@@ -37,7 +40,7 @@ public class Preferences {
     }
     public static ThemeUtils.ColorTheme getNightMode(Context context)
     {
-        return ThemeUtils.ColorTheme.fromInt(getSharedPreferences(context).getInt(KEY_P2P_NIGHT_MODE, ThemeUtils.ColorTheme.System.toInt()));
+        return ThemeUtils.ColorTheme.fromInt(getSharedPreferences(context).getInt(KEY_P2P_NIGHT_MODE, ThemeUtils.ColorTheme.Dark.toInt()));
     }
     public static void setNightMode(Context context, ThemeUtils.ColorTheme colorTheme)
     {
@@ -91,5 +94,21 @@ public class Preferences {
             getSharedPreferences(context).edit().putBoolean(KEY_P2P_UPNP_WORKING,working).apply();
         }
     }
+    public static boolean getKeepScreenOn(Context context) {
+        return getSharedPreferences(context).getBoolean(KEY_KEEP_SCREEN_ON,false);
+    }
+    public static void setKeepScreenOn(Context context, boolean value) {
+        getSharedPreferences(context).edit().putBoolean(KEY_KEEP_SCREEN_ON,value).apply();
+    }
+    public static ScreenOrientation getScreenOrientation(Context context) {
+        return ScreenOrientation.fromInt(
+                getSharedPreferences(context).getInt(KEY_ORIENTATION, ScreenOrientation.SystemDefault.toInt()
+                )
+        );
+    }
 
+    public static void setScreenOrientation(Context context, ScreenOrientation value)
+    {
+        getSharedPreferences(context).edit().putInt(KEY_ORIENTATION, value.toInt()).apply();
+    }
 }

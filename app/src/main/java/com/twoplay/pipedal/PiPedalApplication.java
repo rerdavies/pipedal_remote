@@ -15,7 +15,8 @@ public class PiPedalApplication extends Application {
     public void onCreate() {
         super.onCreate();
         context = getApplicationContext();
-        //DynamicColors.applyToActivitiesIfAvailable(this);
+
+        ThemeUtils.applyUserPreferredTheme(this);
     }
 
     @Override

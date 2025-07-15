@@ -1,7 +1,9 @@
 package com.twoplay.pipedal;
 
 import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.content.ActivityNotFoundException;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.graphics.Rect;
@@ -30,6 +32,7 @@ import androidx.lifecycle.ViewModelProvider;
 
 import com.google.android.material.appbar.MaterialToolbar;
 import com.twoplay.pipedal.model.Model;
+import com.twoplay.pipedal.model.ScreenOrientation;
 import com.twoplay.pipedal.model.WebProbe;
 
 import org.json.JSONObject;
@@ -60,6 +63,7 @@ public class WebViewFragment extends Fragment {
     private boolean retainedWebView = false;
     private MaterialToolbar appBar;
     private TextView addressTextView;
+    private ScreenOrientation screenOrientation;
 
 
     static class ImeInfo {
@@ -204,7 +208,14 @@ public class WebViewFragment extends Fragment {
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        this.webCallbacks = new WebCallbacks();
+        this.keepScreenOn = Preferences.getKeepScreenOn(requireContext());
+        this.screenOrientation = Preferences.getScreenOrientation(requireContext());
+
         webView = new WebView(getActivity());
+
+        webView.setKeepScreenOn(this.keepScreenOn);
+
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageFinished(WebView view, String url) {
@@ -370,6 +381,7 @@ public class WebViewFragment extends Fragment {
     Runnable removeLoadingRunnable = new Runnable() {
         @Override
         public void run() {
+
             showPageLoading(false);
         }
     };
@@ -614,6 +626,11 @@ public class WebViewFragment extends Fragment {
 
     private class WebCallbacks {
 
+        private boolean keepScreenOn;
+        private Context context;
+
+        WebCallbacks() {
+        }
         String hostVersion = "0.1";
 
         @JavascriptInterface
@@ -652,6 +669,10 @@ public class WebViewFragment extends Fragment {
             return ThemeUtils.isDarkModeEnabled(getContext());
         }
 
+        @JavascriptInterface
+        public void setServerVersion(String version) {
+
+        };
 
         @JavascriptInterface
         public String getHostVersion() {
@@ -686,7 +707,11 @@ public class WebViewFragment extends Fragment {
         }
         private String[] whiteList  = {
                 "https://rerdavies.github.io/pipedal",
-                "https://github.com/rerdavies/pipedal"
+                "https://github.com/rerdavies/pipedal",
+                "https://patchstorage.com/",
+                "https://tone3000.com/",
+                "https://tonehunt.org/",
+                "https://guitarml.com/"
         };
         @JavascriptInterface
         public boolean launchExternalUrl(String url)
@@ -709,7 +734,30 @@ public class WebViewFragment extends Fragment {
                 return true;
             }
             return false;
+        }
 
+        @JavascriptInterface
+        public void setKeepScreenOn(final boolean value) {
+            handler.post(() -> {
+                WebViewFragment.this.setKeepScreenOn(value);
+            });
+        }
+
+        @JavascriptInterface
+        public synchronized boolean getKeepScreenOn() {
+            return WebViewFragment.this.getKeepScreenOn();
+        }
+        @JavascriptInterface
+        public void setScreenOrientation(final double screenOrientation) {
+            handler.post(() -> {
+                ScreenOrientation value = ScreenOrientation.fromInt((int)screenOrientation);
+                WebViewFragment.this.setScreenOrientation(value);
+
+            });
+        }
+        @JavascriptInterface
+        public synchronized double getScreenOrientation() {
+            return WebViewFragment.this.getScreenOrientation().toInt();
         }
     }
 
@@ -724,7 +772,6 @@ public class WebViewFragment extends Fragment {
             pageUnloadedListener.onPageUnloaded();
             pageUnloadedListener = null;
             showPageLoading(true); // hide white flash in dark mode.
-
         } else {
             showPageLoading(false);
             try {
@@ -733,6 +780,7 @@ public class WebViewFragment extends Fragment {
                 if (ref == null || ref.isEmpty() || ref.equals("#"))
                 {
                     webView.clearHistory();
+                    loadFocusTrackingScriptBlock();
                 }
             } catch (MalformedURLException ignored) {
             }
@@ -759,7 +807,8 @@ public class WebViewFragment extends Fragment {
     }
 
 
-    WebCallbacks webCallbacks = new WebCallbacks();
+    private boolean keepScreenOn;
+    WebCallbacks webCallbacks;
 
     @Override
     public void onActivityResult(int requestCode, int resultCode, @Nullable Intent intent) {
@@ -787,6 +836,57 @@ public class WebViewFragment extends Fragment {
         else
             Toast.makeText(getActivity().getApplicationContext(), "Failed to Upload Image", Toast.LENGTH_LONG).show();
 
+    }
+
+    void loadFocusTrackingScriptBlock()
+    {
+        // used by Android client to perform focus scrolling on keyboard open.
+        // avoids an awkward versioning problem. Hopefully we never have to do this
+        // again.
+        String scriptBlock =
+        "function getFocusedElementBounds() {\n"+
+        "    let  focusedElement = document.activeElement;\n"+
+        "    if (focusedElement && focusedElement !== document.body) {\n"+
+        "        let  rect = focusedElement.getBoundingClientRect();\n"+
+        "        return {\n"+
+        "           top: rect.top,\n"+
+        "            left: rect.left,\n"+
+        "            right: rect.right,\n"+
+        "            bottom: rect.bottom,\n"+
+        "            windowWidth: window.innerWidth,\n"+
+        "            windowHeight: window.innerHeight,\n"+
+        "        };\n"+
+        "    }\n"+
+        "    return null;\n"+
+        "}\n";
+        webView.evaluateJavascript(scriptBlock,null);
+
+    }
+
+    public synchronized boolean getKeepScreenOn() {
+        return this.keepScreenOn;
+    }
+    public synchronized ScreenOrientation getScreenOrientation() {
+        return this.screenOrientation;
+    }
+    public synchronized void setScreenOrientation(ScreenOrientation value) {
+        this.screenOrientation = value;
+        Preferences.setScreenOrientation(requireContext(), value);
+        Activity activity = getActivity();
+        if (activity != null)
+        {
+            activity.setRequestedOrientation(value.getSystemFlags());
+        }
+
+    }
+
+    public synchronized void setKeepScreenOn(boolean value) {
+        Preferences.setKeepScreenOn(requireContext(), value);
+        this.keepScreenOn = value;
+        if (this.webView != null)
+        {
+            this.webView.setKeepScreenOn(value);
+        }
     }
 
     @SuppressWarnings("deprecation")

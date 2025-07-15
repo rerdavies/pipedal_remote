@@ -1,0 +1,4 @@
+- Use Splash screen loader for first load.
+- Sort out script/focus issue.
+- keep screen on
+- Fix orientation.

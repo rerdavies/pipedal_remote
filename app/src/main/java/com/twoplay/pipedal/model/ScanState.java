@@ -10,7 +10,9 @@ public enum ScanState {
     Searching,
     ErrorState,
     ScanComplete,
+    WebViewLoading,
     ViewWeb,
+
     ConnectionLost,
     ChooseNewDevice,
     SearchingForInstance,

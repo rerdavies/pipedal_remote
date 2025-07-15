@@ -98,10 +98,17 @@ public class DeviceScanner {
 
     }
 
-    public void stopScan() {
-        model.setScanState(ScanState.ScanComplete);
+    public void stopScan(boolean updateState) {
+        if (updateState)
+        {
+            model.setScanState(ScanState.ScanComplete);
+
+        }
         asyncStopScan()
                 .andCatch((exception)->{ onError(exception);});
+    }
+    public void stopScan() {
+        stopScan(true);
     }
 
     public void restartScan() {
