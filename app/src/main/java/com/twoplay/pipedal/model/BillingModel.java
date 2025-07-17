@@ -14,17 +14,15 @@ import com.android.billingclient.api.BillingFlowParams;
 import com.android.billingclient.api.BillingResult;
 import com.android.billingclient.api.ConsumeParams;
 import com.android.billingclient.api.ConsumeResponseListener;
+import com.android.billingclient.api.PendingPurchasesParams;
+import com.android.billingclient.api.ProductDetails;
 import com.android.billingclient.api.Purchase;
-import com.android.billingclient.api.PurchasesResponseListener;
 import com.android.billingclient.api.PurchasesUpdatedListener;
-import com.android.billingclient.api.SkuDetails;
-import com.android.billingclient.api.SkuDetailsParams;
-import com.android.billingclient.api.SkuDetailsResponseListener;
-import com.twoplay.pipedal.PiPedalApplication;
+import com.android.billingclient.api.QueryProductDetailsParams;
+import com.android.billingclient.api.QueryPurchasesParams;
 import com.twoplay.pipedal.R;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 
 import androidx.annotation.NonNull;
@@ -42,37 +40,55 @@ public class BillingModel extends AndroidViewModel {
     private static final String TAG = "BillingModel";
 
     private BillingModel this_;
+    private Context context;
+
+    private Context getContext() {
+        return context;
+    }
     public BillingModel(@NonNull Application application) {
         super(application);
+        this.context = application.getApplicationContext();
         this_ = this;
-        Log.i(TAG, "Billing Model started. " + this.hashCode());
         PrepareBilling(application);
     }
 
-    private List<SkuDetails> oneTimeDonations = new ArrayList<>();
-    private List<SkuDetails> subscriptions = new ArrayList<>();
     private BillingClient billingClient;
 
-    public MutableLiveData<List<SkuDetails>> donorSkuDetails = new MutableLiveData<>(new ArrayList<SkuDetails>());
-    public MutableLiveData<List<SkuDetails>> sponsorSkuDetails = new MutableLiveData<>(new ArrayList<SkuDetails>());
+
+    public MutableLiveData<List<ProductDetails>> oneTimeProductDetails = new MutableLiveData<>(new ArrayList<>());
+    public MutableLiveData<List<ProductDetails>> subscriptionProductDetails = new MutableLiveData<>(new ArrayList<>());
+
+    public MutableLiveData<List<Purchase>> oneTimeDonations = new MutableLiveData<>(new ArrayList<>());
+    public MutableLiveData<List<Purchase>> subscriptions = new MutableLiveData<>(new ArrayList<>());
+    public MutableLiveData<List<Purchase>> purchases = new MutableLiveData<>(new ArrayList<>());
+
+    public MutableLiveData<String> billingError = new MutableLiveData<>("");
 
 
-
+    public MutableLiveData<Integer> billingResponseCode
+            = new MutableLiveData<>(BillingClient.BillingResponseCode.OK);
     public interface ErrorListener {
         void onErrorMessageAdded();
-    };
+    }
 
     private ErrorListener errorListener;
 
     private ArrayList<String> errorMessages = new ArrayList<>();
 
+    void setBillingResponseCode(int responseCode)
+    {
+        handler.post(()->{
+            this.billingError.setValue(responseCodeToMessage(getContext(),responseCode));
+            this.billingResponseCode.setValue(responseCode);
+        });
+    }
     public void setErrorListener(ErrorListener listener)
     {
         this.errorListener = listener;
     }
     public boolean hasError()
     {
-        return errorMessages.size() != 0;
+        return !errorMessages.isEmpty();
     }
 
     public String  takeErrorMessage()
@@ -92,33 +108,40 @@ public class BillingModel extends AndroidViewModel {
     }
     private String getString(@StringRes int ridString)
     {
-        return PiPedalApplication.getContext().getString(ridString);
+        return getContext().getString(ridString);
     }
     private PurchasesUpdatedListener purchasesUpdatedListener = new PurchasesUpdatedListener() {
         @Override
-        public void onPurchasesUpdated(BillingResult billingResult, List<Purchase> purchases) {
-            if (billingResult.getResponseCode() == BillingClient.BillingResponseCode.OK
+        public void onPurchasesUpdated(@NonNull BillingResult billingResult, List<Purchase> purchases) {
+            if (checkBillingResult("purchasesUpdated", billingResult)
                     && purchases != null) {
+                final ArrayList<Purchase> validPurchases = new ArrayList<>();
                 for (Purchase purchase : purchases) {
                     handlePurchaseAcknowledge(purchase);
+                    if (purchase.getPurchaseState() == Purchase.PurchaseState.PURCHASED
+                            || purchase.getPurchaseState() == Purchase.PurchaseState.PENDING
+                    ) {
+                        validPurchases.add(purchase);
+                    }
                 }
+                handler.post(()-> {
+                    ArrayList<Purchase> allPurchases = new ArrayList<>();
+                    allPurchases.addAll(BillingModel.this.purchases.getValue());
+                    allPurchases.addAll(validPurchases);
+                    BillingModel.this.purchases.setValue(allPurchases);
+                });
             } else if (billingResult.getResponseCode() == BillingClient.BillingResponseCode.USER_CANCELED) {
                 return;
             } else {
-                String message =String.format(getString(R.string.purchase_failed__reason), BillingModel.responseCodeToMessage(
-                        PiPedalApplication.getContext(),
+                String message =String.format(getString(R.string.purchase_failed__reason), responseCodeToMessage(
+                        getContext(),
                         billingResult.getResponseCode()));
 
                 Log.e(TAG,message);
-// message has already been displayed by billing UI.
-//                showError(
-//                        message
-//                        );
             }
         }
     };
 
-    private HashMap<String,Purchase> purchaseMap = new HashMap<>();
     private void handlePurchaseAcknowledge(Purchase purchase) {
 
         if (purchase.getPurchaseState() == Purchase.PurchaseState.PURCHASED) {
@@ -128,10 +151,6 @@ public class BillingModel extends AndroidViewModel {
                                 .setPurchaseToken(purchase.getPurchaseToken())
                                 .build();
                 billingClient.acknowledgePurchase(acknowledgePurchaseParams, acknowledgePurchaseResponseListener);
-            }
-            for (String sku: purchase.getSkus())
-            {
-                purchaseMap.put(sku,purchase);
             }
         }
     }
@@ -149,7 +168,7 @@ public class BillingModel extends AndroidViewModel {
             if (responseCode != BillingClient.BillingResponseCode.OK)
             {
                 showError(
-                        String.format(getString(R.string.purchase_ack_failed__error),responseCodeToMessage(PiPedalApplication.getContext(),responseCode))
+                        String.format(getString(R.string.purchase_ack_failed__error),responseCodeToMessage(getContext(),responseCode))
                 );
             }
         }
@@ -169,88 +188,154 @@ public class BillingModel extends AndroidViewModel {
 
     }
 
-
+    private boolean checkBillingResult(String method, BillingResult billingResult) {
+        if (billingResult.getResponseCode() == BillingClient.BillingResponseCode.OK)
+        {
+            return true;
+        }
+        if (billingResult.getResponseCode() != BillingClient.BillingResponseCode.NETWORK_ERROR)
+        {
+            Log.i(TAG, method + ": Response failed. (" + responseCodeToMessage(getContext(),billingResult.getResponseCode()) + ")");
+        }
+        setBillingResponseCode(billingResult.getResponseCode());
+        return false;
+    }
     private void PrepareBilling(Application activity) {
 
         // billing client
+        this.purchases.setValue(new ArrayList<>());
+        this.oneTimeDonations.setValue(new ArrayList<>());
+        this.subscriptions.setValue(new ArrayList<>());
+
+
+        PendingPurchasesParams purchaseParms =
+                PendingPurchasesParams.newBuilder()
+                        .enableOneTimeProducts()
+                        .enablePrepaidPlans()
+                        .build();
+
         billingClient = BillingClient.newBuilder(activity)
                 .setListener(purchasesUpdatedListener)
-                .enablePendingPurchases()
+                .enablePendingPurchases(purchaseParms)
                 .build();
 
         billingClient.startConnection(new BillingClientStateListener() {
             @Override
-            public void onBillingSetupFinished(BillingResult billingResult) {
-                if (billingResult.getResponseCode() == BillingClient.BillingResponseCode.OK) {
-                    ArrayList<String> allSkus = new ArrayList<>();
+            public void onBillingSetupFinished(@NonNull BillingResult billingResult) {
+                if (checkBillingResult("Billing.startConnection", billingResult)) {
+                    List<String> oneTimeList = new ArrayList<>();
+                    oneTimeList.add("gold_sponsorship");
+                    oneTimeList.add("silver_sponsorship");
+                    oneTimeList.add("bronze_sponsorship");
+                    List<String> subscriptionList = new ArrayList<>();
+                    subscriptionList.add("gold_subscription");
+                    subscriptionList.add("silver_subscription");
+                    subscriptionList.add("bronze_subscription");
+                    // The BillingClient is ready. You can query purchases here.
+                    List<QueryProductDetailsParams.Product> oneTimeProducts = new ArrayList<>();
+                    List<QueryProductDetailsParams.Product> subscriptionProducts = new ArrayList<>();
+                    for (String sponsorshipId: oneTimeList)
                     {
-                        // The BillingClient is ready. You can query purchases here.
-                        List<String> skuList = new ArrayList<>();
-                        skuList.add("bronze_sponsorship");
-                        skuList.add("silver_sponsorship");
-                        skuList.add("gold_sponsorship");
-                        allSkus.addAll(skuList);
-                        SkuDetailsParams.Builder params = SkuDetailsParams.newBuilder();
-                        params.setSkusList(skuList).setType(BillingClient.SkuType.INAPP);
-                        billingClient.querySkuDetailsAsync(params.build(),
-                                new SkuDetailsResponseListener() {
-                                    @Override
-                                    public void onSkuDetailsResponse(BillingResult billingResult,
-                                                                     List<SkuDetails> skuDetailsList) {
-                                        handler.post(() -> {
-                                            donorSkuDetails.setValue(restoreOrder(skuDetailsList,skuList));
-                                        });
-                                    }
-                                });
+                        var product = QueryProductDetailsParams.Product.newBuilder()
+                            .setProductId(sponsorshipId)
+                            .setProductType(BillingClient.ProductType.INAPP)
+                            .build();
+                        oneTimeProducts.add(product);
                     }
+                    for (String subscriptionId: subscriptionList)
                     {
-                        List<String> skuList = new ArrayList<>();
-                        skuList.add("bronze_subscription");
-                        skuList.add("silver_subscription");
-                        skuList.add("gold_subscription");
-                        allSkus.addAll(skuList);
-                        SkuDetailsParams.Builder params = SkuDetailsParams.newBuilder();
-                        params.setSkusList(skuList).setType(BillingClient.SkuType.SUBS);
-                        billingClient.querySkuDetailsAsync(params.build(),
-                                new SkuDetailsResponseListener() {
-                                    @Override
-                                    public void onSkuDetailsResponse(BillingResult billingResult,
-                                                                     List<SkuDetails> skuDetailsList) {
-                                        handler.post(() -> {
-                                            sponsorSkuDetails.setValue(restoreOrder(skuDetailsList,skuList));
-                                        });
+                        var product = QueryProductDetailsParams.Product.newBuilder()
+                                .setProductId(subscriptionId)
+                                .setProductType(BillingClient.ProductType.SUBS)
+                                .build();
+                        subscriptionProducts.add(product);
+                    }
+                    billingClient.queryProductDetailsAsync(
+                            QueryProductDetailsParams.newBuilder()
+                                    .setProductList(oneTimeProducts)
+                                    .build(),
+                            (
+                                billingResult1,
+                                oneTimeDetails
+                            ) -> {
+                                if (checkBillingResult("queryProductDetails", billingResult1)) {
+                                    var sortedItems = restoreOrder(oneTimeDetails.getProductDetailsList(),oneTimeList);
+                                    BillingModel.this.oneTimeProductDetails.postValue(sortedItems);
+                                    for (var unfetchedProduct : oneTimeDetails.getUnfetchedProductList()) {
+                                        Log.i(TAG, "Unfetched billing product: " + unfetchedProduct.getProductId() + " " + unfetchedProduct.getProductType());
                                     }
-                                });
+                                }
+                            }
+                    );
+                    billingClient.queryProductDetailsAsync(
+                            QueryProductDetailsParams.newBuilder()
+                                    .setProductList(subscriptionProducts)
+                                    .build(),
+                            (
+                                    billingResult1,
+                                    subscriptionDetails
+                            ) -> {
+                                if (checkBillingResult("queryProductDetails", billingResult1)) {
+                                    var sortedItems = restoreOrder(subscriptionDetails.getProductDetailsList(),subscriptionList);
 
-                    }
-                    {
-                        billingClient.queryPurchasesAsync(BillingClient.SkuType.INAPP, new PurchasesResponseListener() {
-                            @Override
-                            public void onQueryPurchasesResponse(@NonNull BillingResult billingResult, @NonNull List<Purchase> list) {
-                                if (billingResult.getResponseCode() == BillingClient.BillingResponseCode.OK)
-                                {
-                                    for (Purchase purchase: list)
-                                    {
-                                        handlePurchaseAcknowledge(purchase);
+                                    BillingModel.this.subscriptionProductDetails.postValue(sortedItems);
+                                    for (var unfetchedProduct : subscriptionDetails.getUnfetchedProductList()) {
+                                        Log.i(TAG, "Unfetched billing product: " + unfetchedProduct.getProductId() + " " + unfetchedProduct.getProductType());
                                     }
                                 }
                             }
-                        });
-                    }
-                    {
-                        billingClient.queryPurchasesAsync(BillingClient.SkuType.SUBS, new PurchasesResponseListener() {
-                            @Override
-                            public void onQueryPurchasesResponse(@NonNull BillingResult billingResult, @NonNull List<Purchase> list) {
-                                if (billingResult.getResponseCode() == BillingClient.BillingResponseCode.OK)
-                                {
-                                    for (Purchase purchase: list)
-                                    {
+                    );
+
+                    QueryPurchasesParams queryPurchasesParamsInApp =
+                            QueryPurchasesParams
+                                    .newBuilder()
+                                    .setProductType(BillingClient.ProductType.INAPP)
+                                    .build();
+                    billingClient.queryPurchasesAsync(
+                            queryPurchasesParamsInApp,
+                            (billingResult1, list) -> {
+                                if (checkBillingResult("queryPurchases(INAPP)",billingResult1)) {
+                                    ArrayList<Purchase> validPurchases = new ArrayList<>();
+                                    for (Purchase purchase : list) {
                                         handlePurchaseAcknowledge(purchase);
+                                        if (purchase.getPurchaseState() == Purchase.PurchaseState.PURCHASED
+                                        || purchase.getPurchaseState() == Purchase.PurchaseState.PENDING)
+                                        {
+                                            validPurchases.add(purchase);
+                                        }
                                     }
+                                    handler.post(() -> {
+                                        BillingModel.this.oneTimeDonations.setValue(validPurchases);
+                                        updatePurchases();
+                                    });
+
                                 }
                             }
-                        });
-                    }
+                    );
+                    QueryPurchasesParams queryPurchasesParamsSubs =
+                            QueryPurchasesParams
+                                    .newBuilder()
+                                    .setProductType(BillingClient.ProductType.SUBS)
+                                    .build();
+                    billingClient.queryPurchasesAsync(
+                            queryPurchasesParamsSubs,
+                            (billingResult1,  list) -> {
+                                if (checkBillingResult("queryPurchases(SUBS)",billingResult1)) {
+                                    ArrayList<Purchase> validPurchases = new ArrayList<>();
+                                    for (Purchase purchase : list) {
+                                        handlePurchaseAcknowledge(purchase);
+                                        if (purchase.getPurchaseState() == Purchase.PurchaseState.PURCHASED
+                                        || purchase.getPurchaseState() == Purchase.PurchaseState.PENDING) {
+                                            validPurchases.add(purchase);
+                                        }
+                                    }
+                                    handler.post(() -> {
+                                        BillingModel.this.subscriptions.setValue(validPurchases);
+                                        updatePurchases();
+                                    });
+                                }
+                            }
+                    );
                 }
             }
 
@@ -263,15 +348,18 @@ public class BillingModel extends AndroidViewModel {
 
     }
 
-    private static List<SkuDetails> restoreOrder(List<SkuDetails> skuDetailsList, List<String> skuList) {
-        ArrayList<SkuDetails> result = new ArrayList<>();
-        for (String sku: skuList)
+    private static List<ProductDetails> restoreOrder(
+            List<ProductDetails> productDetailsList    ,
+            List<String> productIdList
+    ) {
+        ArrayList<ProductDetails> result = new ArrayList<>();
+        for (String productId: productIdList)
         {
-            for (SkuDetails skuDetail: skuDetailsList)
+            for (ProductDetails product: productDetailsList)
             {
-                if (sku.equals(skuDetail.getSku()))
+                if (productId.equals(product.getProductId()))
                 {
-                    result.add(skuDetail);
+                    result.add(product);
                     break;
                 }
             }
@@ -279,30 +367,40 @@ public class BillingModel extends AndroidViewModel {
         return result;
     }
 
-    private void updateSkuDetails() {
+    private void updatePurchases() {
         // concatenate the two sources.
-        ArrayList<SkuDetails> result = new ArrayList<>();
-        result.addAll(oneTimeDonations);
-        result.addAll(subscriptions);
-        this.donorSkuDetails.setValue(result); ;
+        ArrayList<Purchase> result = new ArrayList<>();
+        result.addAll(oneTimeDonations.getValue());
+        result.addAll(subscriptions.getValue());
+        this.purchases.setValue(result);
     }
 
-    private boolean consumeAndPurchaseLicense(Activity activity, SkuDetails skuDetails)
+    private boolean consumeAndPurchaseLicense(Activity activity, final ProductDetails product)
     {
-        Purchase purchase = null;
-        if (skuDetails.getSku().endsWith("_subscription")) return false;
-        if (purchaseMap.containsKey(skuDetails.getSku()))
+        if (product.getProductType().equals(BillingClient.ProductType.SUBS))
         {
-            Purchase t = purchaseMap.get(skuDetails.getSku());
-            if (t != null && t.getPurchaseState() == Purchase.PurchaseState.PURCHASED) {
-                purchase = t;
-            }
+            return false;
         }
-        if (purchase == null) return false;
-
+        Purchase existingPurchase = null;
+        for (var activePurchase: this.purchases.getValue())
+        {
+            boolean found = false;
+            for (var purchasedProductId: activePurchase.getProducts())
+            {
+                if (product.getProductId().equals(purchasedProductId))
+                {
+                    existingPurchase = activePurchase;
+                    break;
+                }
+            }
+            if (existingPurchase != null) break;
+        }
+        if (existingPurchase == null) {
+            return false;
+        }
         ConsumeParams consumeParams =
                 ConsumeParams.newBuilder()
-                        .setPurchaseToken(purchase.getPurchaseToken())
+                        .setPurchaseToken(existingPurchase.getPurchaseToken())
                         .build();
 
         billingClient.consumeAsync(consumeParams, new ConsumeResponseListener() {
@@ -312,13 +410,13 @@ public class BillingModel extends AndroidViewModel {
                 || billingResult.getResponseCode() == BillingClient.BillingResponseCode.ITEM_NOT_OWNED)
                 {
                     try {
-                        launchPurchaseFlow_(activity, skuDetails);
+                        launchPurchaseFlow_(activity, product);
                     } catch (Exception e)
                     {
                         showError(e.getMessage());
                     }
                 } else {
-                    String message = "Consume failed. " +     responseCodeToMessage(PiPedalApplication.getContext(),billingResult.getResponseCode());
+                    String message = "Consume failed. " +     responseCodeToMessage(getContext(),billingResult.getResponseCode());
                     Log.e(TAG,message);
                     showError(message);
                 }
@@ -327,19 +425,38 @@ public class BillingModel extends AndroidViewModel {
         return true;
 
     }
-    public void launchPurchaseFlow(Activity activity, SkuDetails skuDetails) throws Exception {
-        if (consumeAndPurchaseLicense(activity,skuDetails))
+    public void launchPurchaseFlow(Activity activity, ProductDetails product) throws Exception {
+        if (consumeAndPurchaseLicense(activity,product))
         {
             return;
         } else {
-            launchPurchaseFlow_(activity, skuDetails);
+            launchPurchaseFlow_(activity, product);
         }
     }
-    public void launchPurchaseFlow_(Activity activity, SkuDetails skuDetails) throws Exception {
+    public void launchPurchaseFlow_(Activity activity, ProductDetails product) throws Exception {
+        ArrayList<BillingFlowParams.ProductDetailsParams> productDetailsParamList = new ArrayList<>();
+        if (product.getProductType().equals(BillingClient.ProductType.SUBS))
+        {
+            String offerToken = product.getSubscriptionOfferDetails().get(0).getOfferToken();
+            productDetailsParamList.add(
+                    BillingFlowParams.ProductDetailsParams.newBuilder()
+                            .setProductDetails(product)
+                            .setOfferToken(offerToken)
+                            .build()
+            );
+        } else{
+            productDetailsParamList.add(
+                    BillingFlowParams.ProductDetailsParams.newBuilder().
+                            setProductDetails(product)
+                            .build()
+            );
+        }
         BillingFlowParams billingFlowParams = BillingFlowParams.newBuilder()
-                .setSkuDetails(skuDetails)
+                .setProductDetailsParamsList(productDetailsParamList)
                 .build();
-        int responseCode = billingClient.launchBillingFlow(activity, billingFlowParams).getResponseCode();
+        int responseCode = billingClient.launchBillingFlow(
+                activity, billingFlowParams
+        ).getResponseCode();
         if (responseCode == BillingClient.BillingResponseCode.OK)
         {
             return;
@@ -347,16 +464,19 @@ public class BillingModel extends AndroidViewModel {
         throw new Exception(responseCodeToMessage(activity,responseCode));
     }
 
-    private static String responseCodeToMessage(Context context, int responseCode) {
-        int ridString = 0;
+    private String responseCodeToMessage(Context context, int responseCode) {
+        int ridString;
         switch (responseCode)
         {
+            case BillingClient.BillingResponseCode.OK:
+                return "";
             case BillingClient.BillingResponseCode.BILLING_UNAVAILABLE:
                 ridString = R.string.billing_unavailable;
                 break;
             case BillingClient.BillingResponseCode.DEVELOPER_ERROR:
                 ridString = R.string.developer_error;
                 break;
+            //noinspection deprecation
             case BillingClient.BillingResponseCode.SERVICE_TIMEOUT:
                 ridString = R.string.service_timeout;
                 break;
@@ -386,6 +506,6 @@ public class BillingModel extends AndroidViewModel {
                 ridString = R.string.unexpected_error;
                 break;
         }
-        return PiPedalApplication.getContext().getString(ridString);
+        return getContext().getString(ridString);
     }
 }

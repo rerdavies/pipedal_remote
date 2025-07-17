@@ -18,6 +18,7 @@ import android.view.ViewGroup;
 import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
+import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -27,6 +28,8 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
@@ -216,13 +219,6 @@ public class WebViewFragment extends Fragment {
 
         webView.setKeepScreenOn(this.keepScreenOn);
 
-        webView.setWebViewClient(new WebViewClient() {
-            @Override
-            public void onPageFinished(WebView view, String url) {
-                super.onPageFinished(view, url);
-                onUrlLoaded(url);
-            }
-        });
         prepareWebView(webView);
     }
 
@@ -237,8 +233,13 @@ public class WebViewFragment extends Fragment {
 
     @SuppressLint("SetJavaScriptEnabled")
     private void prepareWebView(WebView webView) {
-        webView.getSettings().setJavaScriptEnabled(true);
-        webView.getSettings().getAllowContentAccess();
+        var settings = webView.getSettings();
+        settings.setJavaScriptEnabled(true);
+        settings.setAllowContentAccess(true);
+        settings.setAllowFileAccess(false);
+        settings.setAllowFileAccessFromFileURLs(false);
+        settings.setBlockNetworkLoads(false);
+
         WebSettings wss = webView.getSettings();
         wss.setJavaScriptEnabled(true);
         wss.setDisabledActionModeMenuItems(WebSettings.MENU_ITEM_SHARE | WebSettings.MENU_ITEM_WEB_SEARCH | WebSettings.MENU_ITEM_PROCESS_TEXT);
@@ -252,6 +253,30 @@ public class WebViewFragment extends Fragment {
 
         webCallbacks.hostVersion = BuildConfig.VERSION_NAME;
         webView.addJavascriptInterface(webCallbacks, "AndroidHost");
+
+        webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                onUrlLoaded(url);
+            }
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                var url = request.getUrl().toString();
+                // keep in browser.
+                if (isWhiteListed(url)) {
+                    return super.shouldOverrideUrlLoading(view, request);
+                }
+                // launch in external browser.
+                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                if (getActivity() != null) {
+                    getActivity().startActivity(intent);
+                }
+                return true;
+            }
+
+        });
+
 
         webView.setWebChromeClient(new WebChromeClient() {
             // For 3.0+ Devices (Start)
@@ -612,6 +637,34 @@ public class WebViewFragment extends Fragment {
     private boolean deferredLostConnection = false;
     private boolean bgIsDisconnected = false;
 
+    private static String[] whiteList  = {
+            "https://rerdavies.github.io/pipedal",
+            "https://github.com/rerdavies/pipedal",
+            "https://patchstorage.com/",
+            "https://tone3000.com/",
+            "https://www.tone3000.com/",
+            "https://tonehunt.org/",
+            "https://guitarml.com/",
+            "https://www.guitarml.com/",
+            "https://github.com/GuitarML/ToneLibrary/",
+            "https://www.patreon.com/GuitarML"
+    };
+
+    private boolean isWhiteListed(String url)
+    {
+        boolean whiteListed = false;
+        for (int i = 0; i < whiteList.length; ++i)
+        {
+            if (url.startsWith(whiteList[i]))
+            {
+                whiteListed = true;
+                break;
+            }
+        }
+        return whiteListed;
+    }
+
+
     private void checkForDeferredActions() {
         if (deferredChooseNewDevice) {
             mModel.webCallbackChooseNewDevice(getActivity());
@@ -705,26 +758,24 @@ public class WebViewFragment extends Fragment {
                 }
             });
         }
-        private String[] whiteList  = {
-                "https://rerdavies.github.io/pipedal",
-                "https://github.com/rerdavies/pipedal",
-                "https://patchstorage.com/",
-                "https://tone3000.com/",
-                "https://tonehunt.org/",
-                "https://guitarml.com/"
-        };
+
+        private void handleTone3000Search(String url) {
+            handler.post(() -> {
+                Tone3000DialogFragment.newInstance(WebViewFragment.this, "https://www.tone3000.com/search", "audio_uploads");
+
+            });
+
+        }
+
         @JavascriptInterface
         public boolean launchExternalUrl(String url)
         {
-            boolean whiteListed = false;
-            for (int i = 0; i < whiteList.length; ++i)
-            {
-                if (url.startsWith(whiteList[i]))
-                {
-                    whiteListed = true;
-                    break;
-                }
-            }
+//            if (url.startsWith("https://www.tone3000.com/search"))
+//            {
+//                handleTone3000Search(url);
+//                return true;
+//            }
+            boolean whiteListed = isWhiteListed(url);
             if (whiteListed)
             {
                 Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));

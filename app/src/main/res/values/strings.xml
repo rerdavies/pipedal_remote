@@ -19,18 +19,19 @@
     <string name="scanning_for_device__device_name">Searching for \'%s\'…</string>
     <string name="connecting_to_device__device_name">Connecting to \'%s\'…</string>
     <string name="resolving_device_address__device_name">Resolving address of \'%s\'…</string>
+    <string name="sponsorship_title">PiPedal Sponsorship</string>
     <string name="sponsorship_pitch"><![CDATA[PiPedal started as a Pandemic Project, a labor of love, and grew into something extraordinary.
-But I can no longer afford to continue development without your support.\n\n— Robin E. R. Davies.]]></string>
-    <string name="billing_unavailable">Billing service unavailable.</string>
+Your sponsorship supports continuing development of PiPedal. \n\n— Robin E. R. Davies.]]></string>
+    <string name="billing_unavailable">Please log in to Play Store to see available options for donations.</string>
     <string name="developer_error">Developer error.</string>
-    <string name="service_timeout">Service timeout.</string>
-    <string name="feature_not_supported">Feature not supported.</string>
-    <string name="service_disconnected">Service disconnected.</string>
-    <string name="user_cancelled">User canceled.</string>
-    <string name="service_unavailable">Service unavailable.</string>
-    <string name="item_unavailable">Item unavailable.</string>
-    <string name="unexpected_error">Unexpected error.</string>
-    <string name="item_already_owned">Item already owned.</string>
+    <string name="service_timeout">Unable to connect to Google Play services. Connection timed out.</string>
+    <string name="feature_not_supported">Billing error. Feature not supported.</string>
+    <string name="service_disconnected">Unable to connect to Google Play services. Service disconnected.</string>
+    <string name="user_cancelled"></string>
+    <string name="service_unavailable">Unable to connect to Google Play services. Service unavailable.</string>
+    <string name="item_unavailable">Purchase item unavailable.</string>
+    <string name="unexpected_error">Unable to connect to Google Play services. Unexpected error.</string>
+    <string name="item_already_owned">Unable to complete purchase. Item already owned.</string>
     <string name="item_not_owned">Item not owned.</string>
     <string name="purchase_failed__reason">\"Purchase failed. %s \"</string>
     <string name="purchase_ack_failed__error">Purchase acknowledgement failed. %s</string>
@@ -75,7 +76,9 @@ But I can no longer afford to continue development without your support.\n\n— 
     <string name="connect_hint">When connecting to a PiPedal auto-hotspot for the first time, you must connect using the Android Wi-Fi Network user interface in order
     to set a password for the Wi-Fi hotspot network. After that Android should auto-connect to the hotspot whenever it is visible.
     </string>
-    <string name="xxx">xxx</string>
+    <string name="blahblah">Blah blah.</string>
+    <string name="tone3000_dialog_title">TONE3000 Downloads</string>
+    <string name="close_button_description">Close</string>
 
     <string-array name="connection_status">
         <item></item>

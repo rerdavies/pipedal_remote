@@ -6,6 +6,7 @@ import android.os.Bundle;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.core.app.ActivityCompat;
@@ -50,6 +51,7 @@ public class ErrorDialogFragment extends DialogFragment {
                 fragmentActivity.getSupportFragmentManager(),TAG);
     }
 
+    @NonNull
     @Override
     public Dialog onCreateDialog(@Nullable Bundle savedInstanceState) {
         Bundle args = this.getArguments();

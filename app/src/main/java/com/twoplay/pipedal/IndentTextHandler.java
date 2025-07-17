@@ -17,6 +17,8 @@ import android.text.style.BulletSpan;
 import android.text.style.LeadingMarginSpan;
 import android.util.TypedValue;
 
+import androidx.annotation.Nullable;
+
 import org.xml.sax.XMLReader;
 
 public class IndentTextHandler {
@@ -53,7 +55,7 @@ public class IndentTextHandler {
                 if (opening) {
                     output.setSpan(new ULLeadingMarginSpan(listItemIndentPx), output.length(), output.length(), Spanned.SPAN_MARK_MARK);
                 } else {
-                    Object span = getLast(output, ULLeadingMarginSpan.class);
+                    ULLeadingMarginSpan span = getLast(output, ULLeadingMarginSpan.class);
                     int where = output.getSpanStart(span);
                     output.removeSpan(span);
                     if (where != output.length()) {
@@ -71,7 +73,7 @@ public class IndentTextHandler {
                     output.setSpan(
                             bulletSpan, output.length(), output.length(), Spanned.SPAN_MARK_MARK);
                 } else {
-                    Object span = getLast(output, BulletSpan.class);
+                    BulletSpan span = getLast(output, BulletSpan.class);
                     int where = output.getSpanStart(span);
                     output.removeSpan(span);
                     if (where != output.length()) {
@@ -81,8 +83,9 @@ public class IndentTextHandler {
             }
         }
 
-        private Object getLast(Editable text, Class kind) {
-            Object[] objs = text.getSpans(0, text.length(), kind);
+        @Nullable
+        private <T> T getLast(Editable text, Class<T> kind) {
+            T[] objs = text.getSpans(0, text.length(), kind);
             if (objs.length == 0) {
                 return null;
             } else {
@@ -90,7 +93,6 @@ public class IndentTextHandler {
             }
         }
     }
-
     private static class ULLeadingMarginSpan implements LeadingMarginSpan {
         private final int margin;
 

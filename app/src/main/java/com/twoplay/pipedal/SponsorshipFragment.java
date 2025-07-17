@@ -8,7 +8,8 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import com.android.billingclient.api.SkuDetails;
+import com.android.billingclient.api.BillingClient;
+import com.android.billingclient.api.ProductDetails;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.twoplay.pipedal.model.BillingModel;
 
@@ -30,7 +31,8 @@ implements BillingErrorDialogFragment.CancelListener
 {
     private BillingModel billingModel;
     private RecyclerView donorRecyclerView,sponsorRecyclerView;
-    private MyAdapter donorAdapter,sponsorAdapter;
+    private MyAdapter oneTimeProductDetailsAdapter,sponsorAdapter;
+    private TextView billingErrorText;
 
     public interface BackListener {
         void onReturnFromSponsorship();
@@ -41,16 +43,21 @@ implements BillingErrorDialogFragment.CancelListener
         super.onCreate(savedInstanceState);
         View view =  inflater.inflate(R.layout.fragment_sponsorship, container, false);
         this.billingModel = new ViewModelProvider(this).get(BillingModel.class);
+        this.billingErrorText = view.findViewById(R.id.billing_status_text);
+        billingErrorText.setText("");
 
         this.donorRecyclerView = view.findViewById(R.id.donor_recycler_view);
         this.sponsorRecyclerView = view.findViewById(R.id.sponsor_recycler_view);
-        this.donorAdapter = new SponsorshipFragment.MyAdapter(billingModel.donorSkuDetails.getValue());
-        this.sponsorAdapter = new SponsorshipFragment.MyAdapter(billingModel.sponsorSkuDetails.getValue());
-        billingModel.donorSkuDetails.observe(this.getViewLifecycleOwner(),(items)-> {
-            donorAdapter.setItems(items);
+        this.oneTimeProductDetailsAdapter = new SponsorshipFragment.MyAdapter(billingModel.oneTimeProductDetails.getValue());
+        this.sponsorAdapter = new SponsorshipFragment.MyAdapter(billingModel.subscriptionProductDetails.getValue());
+        billingModel.oneTimeProductDetails.observe(this.getViewLifecycleOwner(),(items)-> {
+            oneTimeProductDetailsAdapter.setItems(items);
         });
-        billingModel.sponsorSkuDetails.observe(this.getViewLifecycleOwner(),(items)-> {
+        billingModel.subscriptionProductDetails.observe(this.getViewLifecycleOwner(),(items)-> {
             sponsorAdapter.setItems(items);
+        });
+        billingModel.billingError.observe(this.getViewLifecycleOwner(),(message)-> {
+            billingErrorText.setText(message);
         });
 
         MaterialToolbar appBar = view.findViewById(R.id.app_bar);
@@ -63,11 +70,8 @@ implements BillingErrorDialogFragment.CancelListener
             }
         });
 
-
-
-
         donorRecyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
-        donorRecyclerView.setAdapter(donorAdapter);
+        donorRecyclerView.setAdapter(oneTimeProductDetailsAdapter);
 
         sponsorRecyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
         sponsorRecyclerView.setAdapter(sponsorAdapter);
@@ -79,7 +83,7 @@ implements BillingErrorDialogFragment.CancelListener
 
     void showBillingError(String message)
     {
-        if (message != "") {
+        if (!message.isEmpty()) {
             BillingErrorDialogFragment.execute(this, message, getString(R.string.app_name));
         }
     }
@@ -131,15 +135,15 @@ implements BillingErrorDialogFragment.CancelListener
         private TextView primaryText;
         private TextView secondaryText;
         private TextView priceText;
-        private SkuDetails skuDetails;
+        private ProductDetails productDetails;
 
         public MyViewHolder(@NonNull View itemView) {
             super(itemView);
             card = itemView.findViewById(R.id.card_background);
             card.setOnClickListener((view)-> {
-                if (skuDetails != null)
+                if (productDetails != null)
                 {
-                    onSkuClicked(skuDetails);
+                    onSkuClicked(productDetails);
                 }
             });
             primaryText = itemView.findViewById(R.id.primary_text);
@@ -148,13 +152,13 @@ implements BillingErrorDialogFragment.CancelListener
             priceText = itemView.findViewById(R.id.price_text);
         }
 
-        public void bind(SkuDetails skuDetails) {
-            this.skuDetails = skuDetails;
+        public void bind(ProductDetails productDetails) {
+            this.productDetails = productDetails;
             int ridPrimary;
             int ridSecondary;
             int ridImage;
 
-            switch (skuDetails.getSku())
+            switch (productDetails.getProductId())
             {
                 case "bronze_sponsorship":
                     ridPrimary = R.string.bronze_donor;
@@ -187,16 +191,31 @@ implements BillingErrorDialogFragment.CancelListener
                     ridImage = R.drawable.ic_circle_24px_gold;
                     break;
                 default:
-                    throw new RuntimeException("Unexpected sku: " + skuDetails.getSku());
+                    throw new RuntimeException("Unexpected sku: " + productDetails.getProductId());
             }
             primaryText.setText(getString(ridPrimary));
             secondaryText.setText(getString(ridSecondary));
-            priceText.setText(skuDetails.getPrice());
+
+            String price = "#error";
+            if (productDetails.getProductType().equals(BillingClient.ProductType.SUBS))
+            {
+                var subscriptionOffer = productDetails.getSubscriptionOfferDetails();
+                if (subscriptionOffer != null && !subscriptionOffer.isEmpty()) {
+                    var phases = subscriptionOffer.get(0).getPricingPhases();
+                    //xxx
+                    price = phases.getPricingPhaseList().get(0).getFormattedPrice();
+
+                }
+
+            } else {
+                price = productDetails.getOneTimePurchaseOfferDetails().getFormattedPrice();
+            }
+            this.priceText.setText(price);
             imageView.setImageResource(ridImage);
         }
     }
 
-    private void onSkuClicked(SkuDetails skuDetails) {
+    private void onSkuClicked(ProductDetails skuDetails) {
         // launch purchase flow.
         try {
             billingModel.launchPurchaseFlow(this.getActivity(), skuDetails);
@@ -209,13 +228,13 @@ implements BillingErrorDialogFragment.CancelListener
 
     class MyAdapter extends RecyclerView.Adapter<SponsorshipFragment.MyViewHolder> {
 
-        List<SkuDetails> items;
+        List<ProductDetails> items;
 
-        public MyAdapter(List<SkuDetails> items)
+        public MyAdapter(List<ProductDetails> items)
         {
             this.items = items;
         }
-        public void setItems(List<SkuDetails> items)
+        public void setItems(List<ProductDetails> items)
         {
             this.items = items;
             this.notifyDataSetChanged();

@@ -43,6 +43,9 @@ android {
             buildConfig true
         }
     }
+    buildFeatures {
+        viewBinding true
+    }
 }
 
 dependencies {
@@ -54,8 +57,7 @@ dependencies {
     implementation 'androidx.lifecycle:lifecycle-livedata:2.9.1'
     implementation 'androidx.lifecycle:lifecycle-viewmodel:2.9.1'
     implementation 'androidx.preference:preference:1.2.1'
-    implementation 'com.android.billingclient:billing:7.0.0'
-    implementation 'androidx.core:core:1.17.0-beta01'
+      implementation 'androidx.core:core:1.17.0-beta01'
     implementation 'androidx.core:core-splashscreen:1.2.0-rc01'
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.2.1'
@@ -63,6 +65,7 @@ dependencies {
     implementation(platform('org.jetbrains.kotlin:kotlin-bom:1.9.10'))
     //implementation("org.jetbrains.kotlin:kotlin-stdlib:1.8.0")
 
-    def billing_version = '7.0.0'
+    def billingVersion = '8.0.0'
+    implementation "com.android.billingclient:billing:$billingVersion"
 
 }

@@ -75,12 +75,13 @@ public class MainActivity extends AppCompatActivity
 
     @Override
     public void onShowSponsorship() {
-        setActivityState(ActivityState.ViewSponsorship);
+        setShowSponsorship(true);
     }
 
     @Override
     public void onReturnFromSponsorship() {
-        setActivityState(ActivityState.ShowWebView);
+        setShowSponsorship(false);
+
     }
 
 
@@ -90,7 +91,6 @@ public class MainActivity extends AppCompatActivity
         RequestingPermission,
         ShowScanner,
         SearchingForInstance,
-        ViewSponsorship,
         WebViewLoading,
         ShowWebView
     }
@@ -99,7 +99,7 @@ public class MainActivity extends AppCompatActivity
 
     private ActivityState activityState = ActivityState.Created;
 
-
+    private boolean showingSponsorship = false;
 
 
     private ActivityResultLauncher<String> requestPermissionLauncher =
@@ -278,6 +278,10 @@ public class MainActivity extends AppCompatActivity
 
     private OnBackPressedCallback backPressedCallback = null;
     private void handleBackPressed() {
+        if (showingSponsorship) {
+            setShowSponsorship(false);
+            return;
+        }
         WebViewFragment webViewFragment = getWebViewFragment();
         if (webViewFragment != null) {
             if (webViewFragment.NavigateBack()) {
@@ -355,14 +359,25 @@ public class MainActivity extends AppCompatActivity
         }
         if (activityState != this.activityState) {
             this.activityState = activityState;
+            reloadFragments();
+
+        }
+
+        updateSystemBarVisibility();
+    }
+
+    private void reloadFragments()
+    {
+        if (this.showingSponsorship)
+        {
+            getSupportFragmentManager().beginTransaction()
+                    .setReorderingAllowed(true)
+                    .replace(R.id.fragment_container_view, SponsorshipFragment.class, null)
+                    .commit();
+            setNormalStatusBar();
+
+        } else {
             switch (activityState) {
-                case ViewSponsorship:
-                    getSupportFragmentManager().beginTransaction()
-                            .setReorderingAllowed(true)
-                            .replace(R.id.fragment_container_view, SponsorshipFragment.class, null)
-                            .commit();
-                    setNormalStatusBar();
-                    break;
                 case SearchingForInstance:
                     getSupportFragmentManager().beginTransaction()
                             .setReorderingAllowed(true)
@@ -377,8 +392,7 @@ public class MainActivity extends AppCompatActivity
                             .commit();
                     setNormalStatusBar();
                     break;
-                case ShowScanner:
-                {
+                case ShowScanner: {
                     getSupportFragmentManager().beginTransaction()
                             .setReorderingAllowed(true)
                             .replace(R.id.fragment_container_view, ScannerFragment.class, null)
@@ -409,14 +423,13 @@ public class MainActivity extends AppCompatActivity
                         webviewFragment.setUrl(connectionAddress);
                     }
                 }
-                    break;
+                break;
 
                 case ShowWebView: {
 
                     // Remove the scanner fragment, revealing the web view underneath.
                     Fragment fragment = getSupportFragmentManager().findFragmentById(R.id.fragment_container_view);
-                    if (fragment != null)
-                    {
+                    if (fragment != null) {
                         getSupportFragmentManager().beginTransaction()
                                 .remove(fragment)
                                 .commit();
@@ -426,24 +439,19 @@ public class MainActivity extends AppCompatActivity
 
                 }
                 break;
-                default:
-                {
+                default: {
                     Fragment fragment = getSupportFragmentManager().findFragmentById(R.id.fragment_container_view);
-                    if (fragment != null)
-                    {
+                    if (fragment != null) {
                         getSupportFragmentManager().beginTransaction()
                                 .remove(fragment)
                                 .commit();
                     }
                 }
                 break;
-
             }
-
         }
-
-        updateSystemBarVisibility();
     }
+
     private boolean isLandscape()
     {
         return getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
@@ -668,7 +676,8 @@ public class MainActivity extends AppCompatActivity
 
         if (savedInstanceState != null)
         {
-            savedInstanceState.getBoolean(KEY_RATIONALE_SHOWN,false);
+            this.rationaleShown = savedInstanceState.getBoolean(KEY_RATIONALE_SHOWN,false);
+            this.showingSponsorship = savedInstanceState.getBoolean(KEY_SHOW_SPONSORSHIP,false);
         }
         intentFilter.addAction(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION);
         intentFilter.addAction(WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION);
@@ -684,8 +693,12 @@ public class MainActivity extends AppCompatActivity
         }
 
         getOnBackPressedDispatcher().addCallback(this.onBackPressed);
+
         setNormalStatusBar();
+
+
         maybeRequestPermissions();
+
 
         this.backPressedCallback =new OnBackPressedCallback(true) {
             @Override
@@ -734,11 +747,12 @@ public class MainActivity extends AppCompatActivity
     }
 
     private static final String KEY_RATIONALE_SHOWN = "rationale_shown";
+    private static final String KEY_SHOW_SPONSORSHIP = "show_sponsorship";
     @Override
     public void onSaveInstanceState(@NonNull Bundle outState) {
         super.onSaveInstanceState(outState);
         outState.putBoolean(KEY_RATIONALE_SHOWN,this.rationaleShown);
-
+        outState.putBoolean(KEY_SHOW_SPONSORSHIP,this.showingSponsorship);
     }
 
     @Override
@@ -756,6 +770,12 @@ public class MainActivity extends AppCompatActivity
             model.stopScan();
         }
         super.onDestroy();
+    }
+
+    public void setShowSponsorship(boolean value)
+    {
+        this.showingSponsorship = value;
+        reloadFragments();
     }
 
 }
