@@ -27,12 +27,22 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
-            app:layout_constraintEnd_toStartOf="@id/medallion"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toTopOf="@id/secondary_text"
-            app:layout_constraintVertical_chainStyle="packed"
-            android:text="Bronze Donor"/>
+            android:text="@string/dummy_text"/>
+        <ImageView
+            android:id="@+id/checkmark"
+            android:src="@drawable/ic_verified_24dp"
+            app:tint="?colorOnSurface"
+            android:layout_marginLeft="8dp"
+            android:layout_width="18dp" android:layout_height="18dp"
+            app:layout_constraintStart_toEndOf="@id/primary_text"
+            app:layout_constraintTop_toTopOf="@id/primary_text"
+            app:layout_constraintBottom_toBottomOf="@id/primary_text"
+
+            />
+
         <ImageView
             android:id="@+id/medallion"
             android:src="@drawable/ic_circle_24px_bronze"
@@ -42,6 +52,7 @@
             app:layout_constraintBottom_toBottomOf="@id/primary_text"
 
             />
+
 
         <TextView
             android:id="@+id/secondary_text"

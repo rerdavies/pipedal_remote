@@ -24,6 +24,7 @@ import android.util.TypedValue;
 
 import androidx.annotation.RequiresApi;
 
+import com.twoplay.pipedal.model.BillingModel;
 import com.twoplay.pipedal.model.Model;
 import com.twoplay.pipedal.model.ScanState;
 import com.twoplay.pipedal.model.TerminatingViewModel;
@@ -53,6 +54,7 @@ public class MainActivity extends AppCompatActivity
             SponsorshipFragment.BackListener
 {
     private Model model;
+    private BillingModel billingModel;
     private OnBackPressedCallback onBackPressed = new OnBackPressedCallback(true) {
         @Override
         public void handleOnBackPressed() {
@@ -659,6 +661,9 @@ public class MainActivity extends AppCompatActivity
         ViewModelProvider viewModelProvider = new ViewModelProvider(this);
         this.terminatingViewModel = viewModelProvider.get(TerminatingViewModel.class);
         this.model = viewModelProvider.get(Model.class);
+
+        this.billingModel = viewModelProvider.get(BillingModel.class);
+
 
         this.webViewContainer = findViewById(R.id.web_container_view);
 

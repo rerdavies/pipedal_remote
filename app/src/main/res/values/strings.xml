@@ -22,7 +22,7 @@
     <string name="sponsorship_title">PiPedal Sponsorship</string>
     <string name="sponsorship_pitch"><![CDATA[PiPedal started as a Pandemic Project, a labor of love, and grew into something extraordinary.
 Your sponsorship supports continuing development of PiPedal. \n\n— Robin E. R. Davies.]]></string>
-    <string name="billing_unavailable">Please log in to Play Store to see available options for donations.</string>
+    <string name="billing_unavailable">Billing unavailable.</string>
     <string name="developer_error">Developer error.</string>
     <string name="service_timeout">Unable to connect to Google Play services. Connection timed out.</string>
     <string name="feature_not_supported">Billing error. Feature not supported.</string>
@@ -33,15 +33,15 @@ Your sponsorship supports continuing development of PiPedal. \n\n— Robin E. R.
     <string name="unexpected_error">Unable to connect to Google Play services. Unexpected error.</string>
     <string name="item_already_owned">Unable to complete purchase. Item already owned.</string>
     <string name="item_not_owned">Item not owned.</string>
-    <string name="purchase_failed__reason">\"Purchase failed. %s \"</string>
+    <string name="purchase_failed__reason">Purchase failed. (%s) </string>
     <string name="purchase_ack_failed__error">Purchase acknowledgement failed. %s</string>
     <string name="purchase_received">Thank you for your support.</string>
     <string name="bronze_donor">Bronze Donor</string>
     <string name="silver_donor">Silver Donor</string>
     <string name="gold_donor">Gold Donor</string>
-    <string name="bronze_sponsor">Bronze Sponsor</string>
-    <string name="silver_sponsor">Silver Sponsor</string>
-    <string name="gold_sponsor">Gold Sponsor</string>
+    <string name="bronze_sponsor">Bronze Patron</string>
+    <string name="silver_sponsor">Silver Patron</string>
+    <string name="gold_sponsor">Gold Patron</string>
     <string name="one_time_donation">One-time donation</string>
     <string name="monthly_donation">Monthly donation</string>
     <string name="dummy_text">Ipsem lorem</string>
@@ -85,6 +85,7 @@ Your sponsorship supports continuing development of PiPedal. \n\n— Robin E. R.
     <string name="searching">Searching...</string>
     <string name="connect_to_wi_fi_network">Connect to Wi-Fi Network</string>
     <string name="connect_to_ip_address">Connect to IP Address</string>
+    <string name="billing_not_connected">"Can't connect to Google Play services. You must be connected to the internet in order to make sponsorship donations through the Play store. "</string>
 
     <string-array name="connection_status">
         <item></item>

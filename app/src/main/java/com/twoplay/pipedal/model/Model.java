@@ -29,11 +29,15 @@ public class Model
     private WifiP2pManager wifiP2pManager;
     private WifiP2pManager.Channel wifiP2pChannel;
 
+
     public Model(@NonNull Application application) {
         super(application);
         this.wifiP2pManager = (WifiP2pManager) (application.getSystemService(Context.WIFI_P2P_SERVICE));
         this.wifiP2pChannel = wifiP2pManager.initialize(application, application.getMainLooper(),null);
-        this.scanner = new DeviceScanner(this,application);    }
+        this.scanner = new DeviceScanner(this,application);
+
+
+    }
 
     public boolean hasWifiDirectConnection() {
         return hasWifiDirectConnection_;
@@ -391,5 +395,7 @@ public class Model
             });
         }
     }
+
+
 }
 

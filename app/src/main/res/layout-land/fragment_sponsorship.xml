@@ -23,7 +23,7 @@
             app:navigationIconTint="?attr/colorOnSurface"
             android:background="@color/transparent"
 
-            app:title="@string/app_name"
+            app:title="@string/sponsorship_title"
             />
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -37,13 +37,14 @@
 
         <FrameLayout
             android:id="@+id/sponsorship_frame"
-            android:layout_width="270dp"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
-            android:background="#10000000"
+            android:background="@drawable/quote_bg"
             android:padding="16dp"
-            android:layout_marginRight="8dp"
+            android:layout_marginRight="16dp"
             app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/donor_recycler_view"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintHorizontal_chainStyle="packed"
@@ -55,7 +56,8 @@
                 android:layout_height="wrap_content"
                 android:lineSpacingExtra="3sp"
                 android:text="@string/sponsorship_pitch"
-                android:textSize="14sp"
+                android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+
                 />
         </FrameLayout>
 
@@ -63,6 +65,7 @@
             android:id="@+id/billing_status_text"
             android:layout_height="wrap_content"
             android:layout_width="0dp"
+            android:layout_marginLeft="16dp"
             android:lineSpacingExtra="3sp"
             android:layout_marginBottom="16dp"
             android:text="@string/dummy_text"
@@ -71,7 +74,7 @@
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toTopOf="@id/donor_recycler_view"
             app:layout_constraintVertical_chainStyle="packed"
-            android:visibility="gone"
+            android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
             />
 
         <androidx.recyclerview.widget.RecyclerView

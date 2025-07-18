@@ -1,5 +1,6 @@
 package com.twoplay.pipedal;
 
+import android.annotation.SuppressLint;
 import android.os.Bundle;
 import android.os.Handler;
 import android.view.LayoutInflater;
@@ -10,9 +11,12 @@ import android.widget.TextView;
 
 import com.android.billingclient.api.BillingClient;
 import com.android.billingclient.api.ProductDetails;
+import com.android.billingclient.api.Purchase;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.twoplay.pipedal.model.BillingModel;
 
+import java.util.Dictionary;
+import java.util.HashMap;
 import java.util.List;
 
 import androidx.annotation.NonNull;
@@ -27,7 +31,6 @@ import androidx.recyclerview.widget.RecyclerView;
  * Created by Robin on 27/04/2022.
  */
 public class SponsorshipFragment extends Fragment
-implements BillingErrorDialogFragment.CancelListener
 {
     private BillingModel billingModel;
     private RecyclerView donorRecyclerView,sponsorRecyclerView;
@@ -37,14 +40,66 @@ implements BillingErrorDialogFragment.CancelListener
     public interface BackListener {
         void onReturnFromSponsorship();
     }
+    private HashMap<String,Purchase> purchaseMap = new HashMap<>();
+    void updatePurchases(List<Purchase> items) {
+        purchaseMap = new HashMap<>();
+        for (Purchase purchase : items) {
+            for (var productId : purchase.getProducts()) {
+                purchaseMap.put(productId, purchase);
+            }
+        }
+    }
 
+    private void handlePaymentDeclinedMessage(String message)
+    {
+        if (!message.isEmpty()) {
+            billingModel.paymentDeclinedMessage.setValue("");
+            BillingErrorDialogFragment.execute(
+                    this,
+                    message,
+                    "PiPedal");
+        }
+
+    }
+
+    private void updateErrorText(String message)
+    {
+        if (message.isEmpty())
+        {
+            billingErrorText.setVisibility(View.GONE);
+        } else {
+            billingErrorText.setVisibility(View.VISIBLE);
+             billingErrorText.setText(message);
+             billingErrorText.getParent().requestLayout();
+//            billingErrorText.requestLayout();
+//            billingErrorText.invalidate();
+        }
+    }
+
+    private void updateConnectedStatus(boolean connected)
+    {
+        if (connected) {
+            updateErrorText("");
+        } else {
+            updateErrorText(getString(R.string.billing_not_connected));
+        }
+    }
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         View view =  inflater.inflate(R.layout.fragment_sponsorship, container, false);
-        this.billingModel = new ViewModelProvider(this).get(BillingModel.class);
+
+        this.billingModel = new ViewModelProvider(requireActivity()).get(BillingModel.class);
+        this.billingModel.refreshPurchases();
         this.billingErrorText = view.findViewById(R.id.billing_status_text);
-        billingErrorText.setText("");
+
+        updatePurchases(billingModel.purchases.getValue());
+
+        this.billingModel.isConnected.observe(this.getViewLifecycleOwner(),(isConnected)-> {
+            updateConnectedStatus(isConnected);
+        });
+        updateConnectedStatus(billingModel.isConnected.getValue());
+
 
         this.donorRecyclerView = view.findViewById(R.id.donor_recycler_view);
         this.sponsorRecyclerView = view.findViewById(R.id.sponsor_recycler_view);
@@ -53,12 +108,22 @@ implements BillingErrorDialogFragment.CancelListener
         billingModel.oneTimeProductDetails.observe(this.getViewLifecycleOwner(),(items)-> {
             oneTimeProductDetailsAdapter.setItems(items);
         });
+        oneTimeProductDetailsAdapter.setItems(billingModel.oneTimeProductDetails.getValue());
+
         billingModel.subscriptionProductDetails.observe(this.getViewLifecycleOwner(),(items)-> {
             sponsorAdapter.setItems(items);
         });
-        billingModel.billingError.observe(this.getViewLifecycleOwner(),(message)-> {
-            billingErrorText.setText(message);
+        sponsorAdapter.setItems(billingModel.subscriptionProductDetails.getValue());
+
+        billingModel.purchases.observe(this.getViewLifecycleOwner(),(items)-> {
+            updatePurchases(items);
+            oneTimeProductDetailsAdapter.onPurchasesChanged();
+            sponsorAdapter.onPurchasesChanged();
         });
+        billingModel.paymentDeclinedMessage.observe(this.getViewLifecycleOwner(),(message)-> {
+            handlePaymentDeclinedMessage(message);
+        });
+        handlePaymentDeclinedMessage(billingModel.paymentDeclinedMessage.getValue());
 
         MaterialToolbar appBar = view.findViewById(R.id.app_bar);
 
@@ -90,36 +155,10 @@ implements BillingErrorDialogFragment.CancelListener
 
     Handler handler = new Handler();
 
-    @Override
-    public void onBillingErrorDialogCancelled() {
-        handler.post(()-> {
-            if (billingModel.hasError())
-            {
-                showingBillingError = true;
-                BillingErrorDialogFragment.execute(this,billingModel.takeErrorMessage(), getString(R.string.app_name));
-            }
-            showingBillingError = false;
-        });
-    }
 
-    private boolean showingBillingError = false;
-    private void onBillingError()
-    {
-        if (!showingBillingError)
-        {
-            showingBillingError = true;
-            BillingErrorDialogFragment.execute(this,billingModel.takeErrorMessage(), getString(R.string.app_name));
-        }
-    }
     @Override
     public void onResume() {
         super.onResume();
-        billingModel.setErrorListener(()-> onBillingError());
-        showingBillingError = getChildFragmentManager().findFragmentByTag(BillingErrorDialogFragment.TAG) != null;
-        if (!showingBillingError && billingModel.hasError())
-        {
-            BillingErrorDialogFragment.execute(this,billingModel.takeErrorMessage(),getString(R.string.app_name));
-        }
     }
 
     @Override
@@ -131,6 +170,7 @@ implements BillingErrorDialogFragment.CancelListener
     class MyViewHolder extends RecyclerView.ViewHolder {
 
         private final ImageView imageView;
+        private final View checkmark;
         private View card;
         private TextView primaryText;
         private TextView secondaryText;
@@ -150,6 +190,7 @@ implements BillingErrorDialogFragment.CancelListener
             imageView = itemView.findViewById(R.id.medallion);
             secondaryText = itemView.findViewById(R.id.secondary_text);
             priceText = itemView.findViewById(R.id.price_text);
+            checkmark = itemView.findViewById(R.id.checkmark);
         }
 
         public void bind(ProductDetails productDetails) {
@@ -157,6 +198,25 @@ implements BillingErrorDialogFragment.CancelListener
             int ridPrimary;
             int ridSecondary;
             int ridImage;
+            Purchase purchase = SponsorshipFragment.this.purchaseMap.get(productDetails.getProductId());
+            float checkmarkAlpha = 0.0f;
+            if (purchase != null) {
+                checkmark.setVisibility(View.VISIBLE);
+                switch (purchase.getPurchaseState())
+                {
+                    case Purchase.PurchaseState.PURCHASED:
+                        checkmarkAlpha = 1.0f;
+                        break;
+                    case Purchase.PurchaseState.PENDING:
+                        checkmarkAlpha = 0.3f;
+                        break;
+                    default:
+                        break;
+                }
+                checkmark.setAlpha(checkmarkAlpha);
+            } else {
+                checkmark.setVisibility(View.GONE);
+            }
 
             switch (productDetails.getProductId())
             {
@@ -234,6 +294,7 @@ implements BillingErrorDialogFragment.CancelListener
         {
             this.items = items;
         }
+        @SuppressLint("NotifyDataSetChanged")
         public void setItems(List<ProductDetails> items)
         {
             this.items = items;
@@ -255,6 +316,11 @@ implements BillingErrorDialogFragment.CancelListener
         @Override
         public int getItemCount() {
             return items.size();
+        }
+
+        @SuppressLint("NotifyDataSetChanged")
+        public void onPurchasesChanged() {
+            this.notifyDataSetChanged();
         }
     }
 

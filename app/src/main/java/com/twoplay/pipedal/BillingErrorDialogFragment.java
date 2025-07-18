@@ -1,13 +1,15 @@
 package com.twoplay.pipedal;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.Dialog;
+import android.content.DialogInterface;
 import android.os.Bundle;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.DialogFragment;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
@@ -20,9 +22,6 @@ public class BillingErrorDialogFragment extends DialogFragment {
     private static String MESSAGE_EXTRA = "message";
     private static String TITLE_EXTRA = "title";
 
-    public interface CancelListener {
-        void onBillingErrorDialogCancelled();
-    };
     public static void execute(Fragment parent, String message, String title)
     {
         Bundle bundle = new Bundle();
@@ -46,6 +45,8 @@ public class BillingErrorDialogFragment extends DialogFragment {
         dlg.show(fragmentActivity.getSupportFragmentManager(),TAG);
     }
 
+    @NonNull
+    @SuppressLint("DialogFragmentCallbacksDetector")
     @Override
     public Dialog onCreateDialog(@Nullable Bundle savedInstanceState) {
         Bundle args = this.getArguments();
@@ -53,28 +54,19 @@ public class BillingErrorDialogFragment extends DialogFragment {
         String message = args.getString(MESSAGE_EXTRA);
 
         return new MaterialAlertDialogBuilder(requireContext())
-                .setTitle(title)
                 .setMessage(message)
                 .setPositiveButton(getString(R.string.ok), (dialog, which) -> {
                     onClosed();
                 } )
-                .setOnCancelListener((v)-> {
-                    onClosed();
-                })
                 .create();
     }
+
+    @Override
+    public void onCancel(@NonNull DialogInterface dialog) {
+        onClosed();
+    }
+
     private void onClosed() {
-        if (CancelListener.class.isInstance(this.getParentFragment()))
-        {
-            ((CancelListener)this.getParentFragment()).onBillingErrorDialogCancelled();
-            return;
-        }
-        if (CancelListener.class.isInstance(this.getActivity()))
-        {
-            ((CancelListener)this.getActivity()).onBillingErrorDialogCancelled();
-            return;
-        }
-        throw new RuntimeException("Parent does not implement CancelListener");
     }
     public static String TAG = "BillingErrorDialog";
 }
