@@ -9,9 +9,19 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".MainActivity"
-    android:background="?attr/colorSurface"
+    android:theme="@style/Theme.PiPedal.TransparentWindow"
     >
-
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:src="@drawable/bg_image"
+        />
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#00000000"
+        />
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/main_content"
         android:layout_width="match_parent"

@@ -262,17 +262,19 @@ public class WebViewFragment extends Fragment {
             }
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-                var url = request.getUrl().toString();
-                // keep in browser.
-                if (isWhiteListed(url)) {
-                    return super.shouldOverrideUrlLoading(view, request);
-                }
-                // launch in external browser.
-                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-                if (getActivity() != null) {
-                    getActivity().startActivity(intent);
-                }
-                return true;
+                return super.shouldOverrideUrlLoading(view, request);
+                // doesn't deal with self URLS.
+//                var url = request.getUrl().toString();
+//                // keep in browser.
+//                if (isWhiteListed(url)) {
+//                    return super.shouldOverrideUrlLoading(view, request);
+//                }
+//                // launch in external browser.
+//                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+//                if (getActivity() != null) {
+//                    getActivity().startActivity(intent);
+//                }
+//                return true;
             }
 
         });

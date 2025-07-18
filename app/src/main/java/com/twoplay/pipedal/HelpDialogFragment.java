@@ -67,6 +67,7 @@ public class HelpDialogFragment extends DialogFragment {
                     onClosed();
                 })
                 .create();
+
         TextView textView = dialogView.findViewById(R.id.help_text);
         String content = readRawResource(R.raw.help_text_html);
         Spanned spanned = IndentTextHandler.Translate(getActivity(), content);

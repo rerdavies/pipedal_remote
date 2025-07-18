@@ -5,7 +5,6 @@
     android:layout_height="match_parent"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     tools:context=".RationaleFragment"
-    android:background="?attr/colorSurface"
     >
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/app_bar_layout"
@@ -24,6 +23,7 @@
             app:buttonGravity="center_vertical"
             android:paddingEnd="32dp"
             app:title="@string/app_name"
+            android:background="@color/transparent"
             tools:ignore="RtlSymmetry"
             />
     </com.google.android.material.appbar.AppBarLayout>

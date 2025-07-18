@@ -5,27 +5,36 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".ScannerFragment"
-    android:background="?attr/colorSurface"
     >
 
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:layout_width="0dp"
+    <FrameLayout
+        android:layout_width="match_parent"
         android:layout_height="0dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintHorizontal_bias="0.37"
-
         app:layout_constraintTop_toBottomOf="@id/app_bar_layout"
         app:layout_constraintWidth_max="500dp"
+        app:layout_constraintVertical_bias="0.2"
+        android:background="@drawable/card_bg"
 
         >
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginTop="24dp"
+
+        >
+
+
 
         <androidx.appcompat.widget.AppCompatTextView
             android:id="@+id/caption"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Select a device to connect to."
+            android:text="@string/select_a_device_to_connect_to"
+
             android:layout_marginStart="32dp"
             android:layout_marginEnd="32dp"
             android:labelFor="@id/recycler_view"
@@ -41,9 +50,8 @@
             android:layout_marginRight="32dp"
             android:layout_marginTop="16dp"
             android:layout_marginBottom="24dp"
-            android:background="?attr/colorSurface"
 
-            android:visibility="visible"
+            android:visibility="gone"
 
             app:layout_constraintBottom_toTopOf="@id/help_button"
             app:layout_constraintTop_toBottomOf="@id/caption">
@@ -54,7 +62,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
                 android:alpha="0.75"
-                android:text="Searching..."
+                android:text="@string/searching"
                 android:gravity="center"
 
                 android:textAlignment="center"
@@ -92,6 +100,7 @@
             android:layout_marginEnd="32dp"
             app:layout_constraintTop_toBottomOf="@id/caption"
             app:layout_constraintBottom_toTopOf="@id/help_button"
+            android:visibility="gone"
             />
 
         <androidx.constraintlayout.widget.ConstraintLayout
@@ -106,40 +115,22 @@
 
             app:layout_constraintBottom_toTopOf="@id/help_button"
             app:layout_constraintTop_toBottomOf="@id/caption">
-            <View android:id="@+id/hint_spacer1"
-                android:layout_width="8dp"
-                android:layout_height="0dp"
-                app:layout_constraintVertical_weight="1"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toTopOf="@id/error_text"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                />
 
             <TextView
                 android:id="@+id/error_text"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:text="#errorText"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp"
+                android:text="@string/dummy_text"
                 android:gravity="center"
-                android:textAppearance="@style/TextAppearance.AppCompat.Caption"
+                android:textAppearance="@style/TextAppearance.Material3.BodySmall"
                 android:textColor="?android:textColorSecondary"
-                app:layout_constraintTop_toBottomOf="@id/hint_spacer1"
-                app:layout_constraintBottom_toTopOf="@id/hint_spacer2"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintVertical_bias="0.39"
-                app:layout_constraintVertical_chainStyle="packed" />
-            <View android:id="@+id/hint_spacer2"
-                android:layout_width="8dp"
-                android:layout_height="0dp"
-                app:layout_constraintVertical_weight="2"
-                app:layout_constraintTop_toBottomOf="@id/error_text"
+                app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintBottom_toTopOf="@id/connect_hint"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                />
+                app:layout_constraintVertical_chainStyle="packed" />
 
             <TextView
                 android:id="@+id/connect_hint"
@@ -150,8 +141,8 @@
                 android:layout_marginEnd="32dp"
                 app:layout_constraintVertical_chainStyle="packed"
                 android:text="@string/connect_hint"
-                android:textAppearance="@style/TextAppearance.AppCompat.Caption"
-                app:layout_constraintTop_toBottomOf="@id/hint_spacer2"
+                android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+                app:layout_constraintTop_toBottomOf="@id/error_text"
                 app:layout_constraintBottom_toTopOf="@id/wifi_button"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
@@ -159,10 +150,10 @@
                 />
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/wifi_button"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="0dp"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Connect to Wi-Fi Network"
+                android:text="@string/connect_to_wi_fi_network"
                 app:layout_constraintTop_toBottomOf="@id/connect_hint"
                 app:layout_constraintBottom_toTopOf="@id/ip_address_button"
                 app:layout_constraintEnd_toEndOf="parent"
@@ -173,7 +164,7 @@
                 android:id="@+id/ip_address_button"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Connect to IP Address"
+                android:text="@string/connect_to_ip_address"
                 app:layout_constraintTop_toBottomOf="@id/wifi_button"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
@@ -189,7 +180,7 @@
             app:icon="@drawable/ic_help_24px"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Help"
+            android:text="@string/help"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintHorizontal_chainStyle="spread_inside"
             app:layout_constraintStart_toStartOf="parent"
@@ -203,7 +194,7 @@
             style="@style/Widget.Material3.Button.TextButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Cancel"
+            android:text="@string/cancel"
             app:layout_constraintTop_toTopOf="@id/help_button"
             app:layout_constraintEnd_toStartOf="@id/scan_again_button"
             app:layout_constraintStart_toEndOf="@id/help_button"
@@ -219,7 +210,7 @@
             android:layout_height="wrap_content"
             android:visibility="visible"
 
-            android:text="Scan again"
+            android:text="@string/scan_again"
             app:layout_constraintTop_toTopOf="@id/help_button"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintHorizontal_bias="0.87"
@@ -227,18 +218,19 @@
             android:layout_marginStart="16dp"
             android:layout_marginEnd="32dp"/>
     </androidx.constraintlayout.widget.ConstraintLayout>
+    </FrameLayout>
 
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/app_bar_layout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         app:layout_constraintTop_toTopOf="parent"
+        android:background="@color/transparent"
 
         >
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/app_bar"
-            android:contentDescription="Back"
             style="@style/Widget.MaterialComponents.Toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"

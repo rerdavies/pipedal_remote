@@ -79,6 +79,12 @@ Your sponsorship supports continuing development of PiPedal. \n\n— Robin E. R.
     <string name="blahblah">Blah blah.</string>
     <string name="tone3000_dialog_title">TONE3000 Downloads</string>
     <string name="close_button_description">Close</string>
+    <string name="help">Help</string>
+    <string name="cancel">Cancel</string>
+    <string name="scan_again">Scan again</string>
+    <string name="searching">Searching...</string>
+    <string name="connect_to_wi_fi_network">Connect to Wi-Fi Network</string>
+    <string name="connect_to_ip_address">Connect to IP Address</string>
 
     <string-array name="connection_status">
         <item></item>

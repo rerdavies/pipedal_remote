@@ -9,8 +9,12 @@
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:windowTranslucentNavigation">true</item>
+        <item name="android:windowBackground">@color/transparent</item>
+        <item name="toolbarStyle">@style/Widget.App.Toolbar</item>
+        <item name="colorSurface">@color/white</item>
+        <item name="android:colorBackground">@color/white</item>
+        <item name="colorOnSurfaceInverse">@color/white</item>
 
-        <item name="android:windowBackground">@color/windowBackgroundLight</item>
 
         <!--
 
@@ -71,6 +75,7 @@
         <item name="android:windowTranslucentNavigation">true</item>
 
         <item name="android:windowBackground">@color/windowBackgroundDark</item>
+        <item name="toolbarStyle">@style/Widget.App.Toolbar</item>
 
         <!--
         <item name="android:windowTranslucentStatus">true</item>
@@ -140,6 +145,13 @@
     <style name="FullScreenDialog" parent="FullScreenDialogLight">
     </style>
 
+    <style name="Theme.PiPedal.TransparentWindow">
+        <item name="android:windowBackground">@color/transparent</item>
+    </style>
+
+    <style name="Widget.App.Toolbar" parent="Widget.Material3.Toolbar.OnSurface">
+        <item name="android:background">@color/transparent</item>
+    </style>
 
 
 </resources>

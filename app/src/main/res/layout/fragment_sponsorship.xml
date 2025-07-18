@@ -4,7 +4,6 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?attr/colorSurface"
     app:layout_constraintWidth_default="percent">
 
     <com.google.android.material.appbar.AppBarLayout
@@ -13,7 +12,9 @@
         android:layout_height="wrap_content"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        app:layout_constraintTop_toTopOf="parent"
+        android:background="@color/transparent"
+        >
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/app_bar"
@@ -25,7 +26,8 @@
             app:navigationIcon="@drawable/ic_arrow_back_black_24dp"
             app:navigationIconTint="?attr/colorOnSurface"
             app:title="@string/app_name"
-            tools:ignore="RtlSymmetry" />
+            android:background="@color/transparent"
+             />
     </com.google.android.material.appbar.AppBarLayout>
 
     <ScrollView
@@ -38,7 +40,7 @@
             android:layout_height="wrap_content"
             android:layout_marginLeft="24dp"
             android:layout_marginRight="24dp"
-            android:layout_marginBottom="24dp"
+            android:paddingBottom="24dp"
             >
             <TextView android:layout_width="match_parent"
                 android:id="@+id/title"
@@ -57,7 +59,6 @@
                 android:layout_marginTop="24dp"
                 android:layout_marginEnd="0dp"
                 android:layout_marginBottom="48dp"
-                android:background="?attr/colorSurface"
                 android:paddingTop="16dp"
                 android:paddingBottom="16dp"
                 android:paddingLeft="32dp"

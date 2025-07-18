@@ -63,6 +63,7 @@ public class MainActivity extends AppCompatActivity
     private ScrimLayout rootView;
 
     private View mainContent;
+    private View webViewContainer;
 
     private void disconnectAndFinish() {
         if (model != null)
@@ -299,6 +300,8 @@ public class MainActivity extends AppCompatActivity
 
     private void setNormalStatusBar()
     {
+        webViewContainer.setVisibility(View.GONE);
+
         boolean darkMode = ThemeUtils.isDarkModeEnabled(this);
 
         TypedValue typedValue = new TypedValue();getTheme().resolveAttribute(com.google.android.material.R.attr.colorSurface, typedValue, true);
@@ -311,14 +314,15 @@ public class MainActivity extends AppCompatActivity
         insetsController.setAppearanceLightNavigationBars(!darkMode);
 
 
-        this.mainContent.setBackgroundColor(paperColor);
+        this.mainContent.setBackgroundColor(0);
 
-        this.rootView.setStatusBarColor(paperColor);
-        this.rootView.setNavigationBarColorXX(paperColor);
+        this.rootView.setStatusBarColor(0);
+        this.rootView.setNavigationBarColorXX(0);
 
     }
     private void setWebviewStatusBar()
     {
+        webViewContainer.setVisibility(View.VISIBLE);
         WindowInsetsControllerCompat insetsController =
                 WindowCompat.getInsetsController(getWindow(), this.rootView);
         if (ThemeUtils.isDarkModeEnabled(this)) {
@@ -616,6 +620,7 @@ public class MainActivity extends AppCompatActivity
 
         this.splashScreen = SplashScreen.installSplashScreen(this);
 
+
         // ThemeUtils.applyUserPreferredTheme(this);
 
         if (splashScreen != null) {
@@ -655,6 +660,7 @@ public class MainActivity extends AppCompatActivity
         this.terminatingViewModel = viewModelProvider.get(TerminatingViewModel.class);
         this.model = viewModelProvider.get(Model.class);
 
+        this.webViewContainer = findViewById(R.id.web_container_view);
 
         this.rootView = findViewById(R.id.app_main_frame);
         assert rootView != null;
