@@ -66,6 +66,8 @@ public class MainActivity extends AppCompatActivity
 
     private View mainContent;
     private View webViewContainer;
+    private View imageBackgroundView;
+    private View dividerView;
 
     private void disconnectAndFinish() {
         if (model != null)
@@ -299,14 +301,36 @@ public class MainActivity extends AppCompatActivity
 
     }
 
+    private ScrimLayout.ScrimStyle scrimStyle = ScrimLayout.ScrimStyle.None ;
 
-    private void setNormalStatusBar()
+    private void setScrimStyle(ScrimLayout.ScrimStyle scrimStyle) {
+        if (this.scrimStyle != scrimStyle) {
+            this.scrimStyle = scrimStyle;
+            if (scrimStyle == ScrimLayout.ScrimStyle.WebView) {
+                setWebviewStatusBar_();
+            } else {
+                setNormalStatusBar_();
+            }
+        }
+    }
+
+    private void setNormalStatusBar() {
+        setScrimStyle(ScrimLayout.ScrimStyle.PiPedalRemote);
+    }
+    private void setWebviewStatusBar() {
+        setScrimStyle(ScrimLayout.ScrimStyle.WebView);
+    }
+
+    private void setNormalStatusBar_()
     {
         webViewContainer.setVisibility(View.GONE);
+        this.imageBackgroundView.setVisibility(View.VISIBLE);
+        this.dividerView.setVisibility(View.GONE);
 
         boolean darkMode = ThemeUtils.isDarkModeEnabled(this);
 
-        TypedValue typedValue = new TypedValue();getTheme().resolveAttribute(com.google.android.material.R.attr.colorSurface, typedValue, true);
+        TypedValue typedValue = new TypedValue();
+        getTheme().resolveAttribute(com.google.android.material.R.attr.colorSurface, typedValue, true);
         int paperColor = typedValue.data;
 
 
@@ -318,34 +342,42 @@ public class MainActivity extends AppCompatActivity
 
         this.mainContent.setBackgroundColor(0);
 
-        this.rootView.setStatusBarColor(0);
-        this.rootView.setNavigationBarColorXX(0);
+        this.rootView.setStatusBarColor(paperColor);
+        this.rootView.setNavigationBarColorXX(paperColor);
 
     }
-    private void setWebviewStatusBar()
+    private void setWebviewStatusBar_()
     {
         webViewContainer.setVisibility(View.VISIBLE);
+        this.imageBackgroundView.setVisibility(View.GONE);
+        this.dividerView.setVisibility(View.VISIBLE);
+
+        boolean darkMode = ThemeUtils.isDarkModeEnabled(this);
+
+        int darkPaperColor = ContextCompat.getColor(this, R.color.webStatusBarColorDark);
+        int paperColor = darkPaperColor;
+        if (!darkMode)
+        {
+            paperColor = ContextCompat.getColor(this, R.color.webStatusBarColorLight);
+        }
+        this.rootView.setStatusBarColor(paperColor);
+
         WindowInsetsControllerCompat insetsController =
                 WindowCompat.getInsetsController(getWindow(), this.rootView);
-        if (ThemeUtils.isDarkModeEnabled(this)) {
 
-            int paperColor = ContextCompat.getColor(this, R.color.webStatusBarColorDark);
 
-//            insetsController.setAppearanceLightStatusBars(false);
-//            insetsController.setAppearanceLightNavigationBars(false);
+        if (isLandscape())
+        {
+            insetsController.setAppearanceLightStatusBars(!darkMode);
+            insetsController.setAppearanceLightNavigationBars(false);
+
+            this.rootView.setStatusBarColor(paperColor);
+            this.rootView.setNavigationBarColorXX(0xFF000000);
+        } else {
             this.rootView.setStatusBarColor(paperColor);
             this.rootView.setNavigationBarColorXX(paperColor);
-
-
-        } else {
-            int statusBarColor = ContextCompat.getColor(this, R.color.webStatusBarColorLight);
-            int navColor = ContextCompat.getColor(this, R.color.webNavBarColorLight);
-//            insetsController.setAppearanceLightStatusBars(true);
-//            insetsController.setAppearanceLightNavigationBars(true);
-
-            this.rootView.setStatusBarColor(navColor);
-            this.rootView.setNavigationBarColorXX(navColor);
-
+            insetsController.setAppearanceLightStatusBars(!darkMode);
+            insetsController.setAppearanceLightNavigationBars(!darkMode);
         }
 
     }
@@ -467,12 +499,6 @@ public class MainActivity extends AppCompatActivity
 
         boolean hideSystemBars = isLandscape() ;
         {
-            WindowInsetsControllerCompat rootInsetsController =
-                    WindowCompat.getInsetsController(getWindow(), this.rootView);
-
-
-        }
-        {
             // set behavior of mainContent
             WindowInsetsControllerCompat insetsController =
                     WindowCompat.getInsetsController(getWindow(), this.rootView);
@@ -522,47 +548,59 @@ public class MainActivity extends AppCompatActivity
             var statusBarInsets = insets.getInsets(WindowInsetsCompat.Type.statusBars());
             var imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime());
             var navInsets = insets.getInsets(WindowInsetsCompat.Type.navigationBars());
+            var cutoutInsets = insets.getInsets(WindowInsetsCompat.Type.displayCutout());
+            var gestureInsets = insets.getInsets(WindowInsetsCompat.Type.systemGestures());
+
+            var navBottom = navInsets.bottom;
 
             ViewGroup.MarginLayoutParams mlp = (ViewGroup.MarginLayoutParams) mainContent.getLayoutParams();
-            mlp.leftMargin = statusBarInsets.left + navInsets.left;
-            mlp.topMargin = statusBarInsets.top;
-            mlp.rightMargin = statusBarInsets.right +  navInsets.right;
-            mlp.bottomMargin = navInsets.bottom ; // not  under the  nav bar.
+            mlp.leftMargin = statusBarInsets.left + navInsets.left + cutoutInsets.left;
+            mlp.topMargin = statusBarInsets.top ;
+            mlp.rightMargin = statusBarInsets.right +  navInsets.right + cutoutInsets.right;
+            mlp.bottomMargin = navBottom ; // not  under the  nav bar.
             mainContent.setLayoutParams(mlp);
             return WindowInsetsCompat.CONSUMED;
         }
 
         WebViewFragment webviewFragment = getWebViewFragment();
 
-        var imeRect = insets.getInsets(WindowInsetsCompat.Type.ime());
-        var statusRect = insets.getInsets(WindowInsetsCompat.Type.statusBars());
-        var navRect = insets.getInsets(WindowInsetsCompat.Type.navigationBars());
+        var imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime());
+        var statusInsets = insets.getInsets(WindowInsetsCompat.Type.statusBars());
+        var navInsets = insets.getInsets(WindowInsetsCompat.Type.navigationBars());
+        var cutoutInsets = insets.getInsets(WindowInsetsCompat.Type.displayCutout());
+        var gestureInsets = insets.getInsets(WindowInsetsCompat.Type.systemGestures());
+
+        var navBottom = navInsets.bottom;
+        if (gestureInsets.left > 0) // Hah! are we in gesture mode?
+        {
+            navBottom = 0; // we layout under the gesture bar in gesture mode.
+        }
 
 
         int rootHeight = rootView.getHeight();
         int rootWidth = rootView.getWidth();
 
         Insets containerInsets = Insets.of(
-                imeRect.left + navRect.left,
-                statusRect.top+imeRect.top,
-                imeRect.right + navRect.right,
-                navRect.bottom);
+                imeInsets.left + navInsets.left + cutoutInsets.left,
+                statusInsets.top+imeInsets.top,
+                imeInsets.right + navInsets.right + cutoutInsets.right,
+                navBottom);
         assert webviewFragment != null;
         Rect windowPosition = new Rect(
                 containerInsets.left,containerInsets.top,
                 rootWidth-containerInsets.right,
                 rootHeight-containerInsets.bottom);
-        webviewFragment.setImeInsets(windowPosition, imeRect.bottom);
+        webviewFragment.setImeInsets(windowPosition, imeInsets.bottom);
 
         // set layout without scroll inset.
         // the web view fragment will handle the scroll
         ViewGroup.LayoutParams layoutParams = mainContent.getLayoutParams();
         if (layoutParams instanceof ViewGroup.MarginLayoutParams) {
             ViewGroup.MarginLayoutParams marginLayoutParams = (ViewGroup.MarginLayoutParams) layoutParams;
-            marginLayoutParams.topMargin = statusRect.top;
-            marginLayoutParams.bottomMargin = navRect.bottom;  // NOT under the nav bar.
-            marginLayoutParams.leftMargin = navRect.left;
-            marginLayoutParams.rightMargin = navRect.right;
+            marginLayoutParams.topMargin = containerInsets.top;
+            marginLayoutParams.bottomMargin = containerInsets.bottom;  // NOT under the nav bar.
+            marginLayoutParams.leftMargin = containerInsets.left;
+            marginLayoutParams.rightMargin = containerInsets.right;
             mainContent.setLayoutParams(marginLayoutParams);
         }
         // ViewCompat.requestApplyInsets(container);
@@ -625,23 +663,20 @@ public class MainActivity extends AppCompatActivity
 
         // ThemeUtils.applyUserPreferredTheme(this);
 
-        if (splashScreen != null) {
 
-            if (isAtLeastAndroid11()) {
-                splashScreen.setKeepOnScreenCondition(() -> true);
-                // Keep the splash screen on for 10 seconds.
-                // This is just for demonstration purposes.
-                // In a real app, you would dismiss the splash screen
-                // when your app is ready to display its content.
-                cancelSplashScreenRunnable = new Runnable() {
-                    @Override
-                    public void run() {
-                        dismissSplashScreen();
-                    }
-                };
-                handler.postDelayed(cancelSplashScreenRunnable, 10_000);
-            }
-
+        if (isAtLeastAndroid11()) {
+            splashScreen.setKeepOnScreenCondition(() -> true);
+            // Keep the splash screen on for 10 seconds.
+            // This is just for demonstration purposes.
+            // In a real app, you would dismiss the splash screen
+            // when your app is ready to display its content.
+            cancelSplashScreenRunnable = new Runnable() {
+                @Override
+                public void run() {
+                    dismissSplashScreen();
+                }
+            };
+            handler.postDelayed(cancelSplashScreenRunnable, 10_000);
         }
 
 
@@ -670,8 +705,11 @@ public class MainActivity extends AppCompatActivity
         this.rootView = findViewById(R.id.app_main_frame);
         assert rootView != null;
 
+        this.imageBackgroundView = findViewById(R.id.bg_image);
+
         this.mainContent = findViewById(R.id.main_content);
         assert mainContent != null;
+        this.dividerView = findViewById(R.id.nav_divider);
 
 
         updateSystemBarVisibility();

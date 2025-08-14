@@ -109,7 +109,7 @@ public class PiPedalConnection implements Cloneable {
     }
 
     public boolean isSameDevice(PiPedalConnection newDevice) {
-        return instanceId == newDevice.instanceId;
+        return instanceId.equals(newDevice.instanceId);
     }
 
     @Override

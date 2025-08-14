@@ -8,25 +8,21 @@
 
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="#FF8080"
     tools:context=".MainActivity"
-    android:theme="@style/Theme.PiPedal.TransparentWindow"
+
     >
     <ImageView
+        android:id="@+id/bg_image"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:scaleType="centerCrop"
         android:src="@drawable/bg_image"
         />
-    <FrameLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="#00000000"
-        />
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/main_content"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-
 
         >
 
@@ -42,6 +38,11 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
 
-
+        <com.google.android.material.divider.MaterialDivider
+            android:id="@+id/nav_divider"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:layout_constraintBottom_toBottomOf="parent"
+            />
     </androidx.constraintlayout.widget.ConstraintLayout>
 </com.twoplay.pipedal.ScrimLayout>

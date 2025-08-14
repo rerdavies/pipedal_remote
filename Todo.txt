@@ -4,3 +4,11 @@ Tone3000 direct download Status.
 - Unable to read blob because the page is not isolated (prevents SharedArrayBuffer from being created).
 - Probably our injected code turns isolation off.
 - Back button handling in the dialog.
+
+Layout cases:
+
+ 1) Main:
+    edge-to-edge in all scenarios.
+    Inset to avoid cutout.
+    translucent nav bar if nav bar is 2- or 3- button.
+    Nav bar and cutout are BLACK if in landscape.

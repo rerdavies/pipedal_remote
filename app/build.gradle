@@ -7,8 +7,8 @@ android {
 
     defaultConfig {
         applicationId "com.twoplay.pipedal"
-        versionCode 26
-        versionName '1.1.26'
+        versionCode 33
+        versionName '1.1.33'
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         targetSdk 36
@@ -45,6 +45,7 @@ android {
     }
     buildFeatures {
         viewBinding true
+
     }
 }
 

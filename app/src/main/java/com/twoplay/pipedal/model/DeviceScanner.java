@@ -1,17 +1,25 @@
 package com.twoplay.pipedal.model;
 
 import android.annotation.SuppressLint;
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.net.LinkAddress;
 import android.net.nsd.NsdManager;
+import android.net.ConnectivityManager;
+import android.net.LinkProperties;
 import android.net.nsd.NsdServiceInfo;
-import android.net.wifi.WifiManager;
+import android.net.NetworkCapabilities;
 import android.os.Build;
 import android.os.Handler;
 import android.util.Log;
+import android.widget.Toast;
 
 import com.twoplay.pipedal.Completion;
 import com.twoplay.pipedal.Promise;
 
+import java.lang.ref.WeakReference;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.util.ArrayList;
@@ -19,6 +27,7 @@ import java.util.List;
 
 import androidx.annotation.NonNull;
 import androidx.lifecycle.MutableLiveData;
+import android.net.wifi.WifiManager;
 
 /**
  * Copyright (c) 2022-2024, Robin Davies
@@ -68,8 +77,11 @@ public class DeviceScanner {
         this.model = model;
         this.context = context.getApplicationContext();
         wifiManager = (WifiManager) context.getSystemService(Context.WIFI_SERVICE);
+
         knownPipedalNetworks.Load();
         this.nsdManager = (NsdManager) context.getSystemService(Context.NSD_SERVICE);
+        // Register a broadcast receiver to listen for network changes
+        context.registerReceiver(new NetworkChangeReceiver(this), new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION));
 
     }
 
@@ -204,6 +216,9 @@ public class DeviceScanner {
 
     @SuppressLint("MissingPermission")
     private Promise<Void> asyncStartScan_() {
+
+        updateWifiInterfaceBinding();
+
         isScanning = true;
         return new Promise<Void>(handler, (completion) -> {
             this.nsdManager = (NsdManager) context.getSystemService(Context.NSD_SERVICE);
@@ -538,4 +553,82 @@ public class DeviceScanner {
         model.setConnection(service);
     }
 
+    boolean isHotspotConnection() {
+        try {
+            // Get the IP address of the currently connected Wi-Fi connection.
+            ConnectivityManager connectivityManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+            if (connectivityManager == null) return false;
+
+            Inet4Address inet4Address = null;
+
+            android.net.Network[] networks = connectivityManager.getAllNetworks();
+            for (android.net.Network network : networks) {
+                NetworkCapabilities capabilities = connectivityManager.getNetworkCapabilities(network);
+                if (capabilities != null && capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
+                    LinkProperties linkProperties = connectivityManager.getLinkProperties(network);
+                    if (linkProperties != null) {
+                        for (LinkAddress address : linkProperties.getLinkAddresses()) {
+                            if (address.getAddress() instanceof Inet4Address) {
+                                inet4Address = (Inet4Address) address.getAddress();
+                                break;
+                            }
+                        }
+                    }
+                    if (inet4Address != null) break; // Found Wi-Fi IPv4
+                }
+            }
+
+            if (inet4Address == null) return false; // No Wi-Fi IPv4 address found
+
+            byte[] addressBytes = inet4Address.getAddress();
+            // check for 192.168.60.xx (typical hotspot range)
+            return addressBytes[0] == (byte) 192 && addressBytes[1] == (byte) 168 && addressBytes[2] == (byte)60;
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error checking hotspot connection: " + e.getMessage());
+            return false;
+        }
+    }
+
+    private boolean lastIsHotspotConnection = false;
+    private void updateWifiInterfaceBinding() {
+        boolean isHostpostConnection_ = isHotspotConnection();
+        android.net.ConnectivityManager connectivityManager = (android.net.ConnectivityManager) getContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (isHostpostConnection_ == this.lastIsHotspotConnection) {
+            return;
+        }
+        if (isHostpostConnection_) {
+            for (android.net.Network network : connectivityManager.getAllNetworks()) {
+                android.net.NetworkCapabilities capabilities = connectivityManager.getNetworkCapabilities(network);
+                if (capabilities != null && capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)) {
+                    connectivityManager.bindProcessToNetwork(network);
+                    Log.i(TAG, "Bound process to WiFi network.");
+
+                    return;
+                }
+            }
+        } else {
+            connectivityManager.bindProcessToNetwork(null);
+        }
+    }
+
+    private void onNetworkChanged() {
+        Log.i(TAG, "Network changed.");
+        // You might want to re-scan for devices or update the UI here
+        // For example, you could call restartScan()
+        // restartScan();
+        updateWifiInterfaceBinding(); // Re-check hotspot connection and bind if necessary
+    }
+
+    private static class NetworkChangeReceiver extends BroadcastReceiver {
+        private final WeakReference<DeviceScanner> scannerRef;
+
+        NetworkChangeReceiver(DeviceScanner scanner) {
+            this.scannerRef = new WeakReference<>(scanner);
+        }
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            scannerRef.get().onNetworkChanged();
+        }
+    }
 }

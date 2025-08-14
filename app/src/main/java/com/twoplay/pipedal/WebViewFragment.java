@@ -236,7 +236,7 @@ public class WebViewFragment extends Fragment {
         var settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setAllowContentAccess(true);
-        settings.setAllowFileAccess(false);
+        settings.setAllowFileAccess(true);
         settings.setAllowFileAccessFromFileURLs(false);
         settings.setBlockNetworkLoads(false);
 
@@ -532,7 +532,6 @@ public class WebViewFragment extends Fragment {
         return result;
     }
 
-
     public void setUrl(String connectionAddress) {
 
         // convert to canonical webView form.
@@ -549,6 +548,8 @@ public class WebViewFragment extends Fragment {
 
         final String myConnectionAddress = connectionAddress;
         showPageLoading(true);
+
+
 
         asyncWaitForRouting(myConnectionAddress).andThen((hasRouting)-> {
             if (!hasRouting)

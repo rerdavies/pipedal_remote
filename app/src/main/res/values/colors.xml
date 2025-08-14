@@ -13,7 +13,7 @@
     <color name="maskBackground">#DDD</color>
     <color name="defaultBackground">#F8F8F8</color>
     <color name="webStatusBarColorDark">#272727</color>
-    <color name="webStatusBarColorLight">#6750A4</color>
+    <color name="webStatusBarColorLight">#FFFFFFFF</color>
     <color name="webNavBarColorLight">#FFFFFF</color>
 
     <color name="windowBackgroundDark">#000000</color>
